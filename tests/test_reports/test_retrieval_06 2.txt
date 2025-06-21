@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "/Users/robinguiavarch/Documents/git_projects/diagnosis_assistant_renault/rag_avec_kg/tests/test_retrieval_06.py", line 585, in main
+    interactive_mode(bm25, faiss, settings)
+    ^^^^^^^^^^^^^^^^
+NameError: name 'interactive_mode' is not defined
+🚀 RETRIEVAL HYBRIDE BM25 + FAISS
+============================================================
+🔧 Chargement des paramètres...
+🔍 Initialisation des retrievers...
+✅ BM25Retriever initialisé
+✅ FAISSRetriever initialisé
+
+📊 STATISTIQUES:
+   📝 BM25: 0 chunks, 0 docs
+   🧠 FAISS: 1510 vecteurs, dim=384
+❌ Erreur: name 'interactive_mode' is not defined

@@ -1,0 +1,53 @@
+🔍 Analyse des documents JSON nettoyés...
+📊 STATISTIQUES GÉNÉRALES
+============================================================
+📄 Documents: 1
+📖 Pages totales: 2,007
+📝 Mots totaux: 454,444
+📏 Mots par page (moyenne): 226
+
+🎯 Analyse SCR sur le document principal: doc-R-30iB
+
+🎯 EXTRACTION SCR (Méthode séquentielle)
+============================================================
+📄 Document analysé: doc-R-30iB
+🚨 Codes d'erreur totaux: 8,945
+✅ Triplets SCR détectés: 8,682
+📊 Taux de détection: 97.1%
+
+📋 EXEMPLE DE TRIPLET SCR:
+────────────────────────────────────────────────────────────
+🔸 Code d'erreur: ACAL-000
+🔸 Symptôme: ACAL-000 Fail to run DETECT Motn Cause: The Accu Cal 2 Motion failed to run. The Accu Cal 2 motion cannot be started. Remedy: Clear all the errors before executing Accu Cal
+🔸 Cause: The Accu Cal 2 Motion failed to run. The Accu Cal 2 motion cannot be started.
+🔸 Remède: Clear all the errors before executing Accu Cal
+
+📝 APERÇU DU DOCUMENT JSON
+============================================================
+📄 Document: doc-R-30iB
+📍 Position: mots 371,145 à 371,945
+📏 Couverture: 0.2% du document
+────────────────────────────────────────────────────────────
+   motor and its cables.
+   Replace them if necessary.
+   Replace the back plane unit.
+   Before executing the remedy 3, perform a complete controller back up as image to save all your progr...
+   Replace the main board, and restore the image backup.
+   Refer to the Controller Maintenance Manual for more information.
+   Note If SRVO-014 appears after SRVO-123, refer SRVO-014.
+   SRVO-124 Check Hard Stop if Hit(G:%d A:%d) Cause: If ' SRVO-024 Move Error excess' Alarm occurs and ...
+   Remedy: Refer to the Remedy of SRVO-024 SRVO-125 Quick stop speed over (G:%d) Cause: The quick stop ...
+   Remedy: Reduce the speed when a quick stop is executed.
+   SRVO-126 Quick stop error (G:%d) Cause: The program was over during the process of quick stop.
+   Remedy: Press RESET.
+   3–1584 MARRBERCD 04121 E REV N ERROR CODES SRVO-130 OHAL 1(PS) alarm (G:%d A:%d) Cause: Heat sink te...
+   Remedy: Check the rotation of the cooling fan of the Power Supply (αi PS).
+   Decrease the duty cycle of operation.
+   ... (51 lignes supplémentaires)
+
+💡 RÉSUMÉ
+========================================
+✅ Méthode séquentielle validée
+📊 ~8,682 triplets extractibles
+🚀 Prêt pour réécrire 00_extract_scr_triplets.py
+

@@ -1,0 +1,75 @@
+You are an expert in industrial equipment troubleshooting for automotive manufacturing. Extract technical information from user queries and return ONLY valid JSON.
+
+USER QUERY: "{raw_query}"
+
+EXTRACT:
+1. **Technical terms**: Error codes, components, equipment models, keywords
+2. **Equipment info**: Primary equipment, type, manufacturer, series
+3. **Filtered query**: Condensed technical query (6-10 words max) - REMOVE emotional language, KEEP technical essence
+4. **Query variants**: Generate EXACTLY 2 alternative formulations
+
+## EXAMPLES:
+
+**Robot Error:**
+Input: "I got the error ACAL-006 TPE operation error on the FANUC-30iB machine teach pendant. I don't understand why. I look everywhere around the machine but i find nothing. I am completely lost. Maybe I should begin to dismantle the whole equipment? What should I do?"
+
+Output:
+```json
+{
+    "technical_terms": {
+        "error_codes": ["ACAL-006"],
+        "components": ["TPE", "teach pendant"],
+        "equipment_models": ["FANUC-30iB"],
+        "technical_keywords": ["operation error"]
+    },
+    "equipment_info": {
+        "primary_equipment": "FANUC-30iB",
+        "equipment_type": "industrial_robot",
+        "manufacturer": "FANUC",
+        "series": "R-30iB series"
+    },
+    "filtered_query": "ACAL-006 TPE operation error FANUC-30iB",
+    "query_variants": [
+        "ACAL-006 teach pendant error FANUC-30iB",
+        "FANUC-30iB TPE operation failure ACAL-006"
+    ],
+    "confidence_score": 0.95,
+    "processing_notes": "Clear robot error with specific code and equipment identification"
+}
+```
+
+**PLC Issue:**
+Input: "Our Siemens S7-1500 PLC is showing error E001 and the HMI can't connect to it."
+
+Output:
+```json
+{
+    "technical_terms": {
+        "error_codes": ["E001"],
+        "components": ["PLC", "HMI"],
+        "equipment_models": ["S7-1500"],
+        "technical_keywords": ["connection"]
+    },
+    "equipment_info": {
+        "primary_equipment": "Siemens S7-1500",
+        "equipment_type": "PLC",
+        "manufacturer": "Siemens",
+        "series": "S7-1500 series"
+    },
+    "filtered_query": "Siemens S7-1500 error E001 HMI connection",
+    "query_variants": [
+        "S7-1500 PLC network error E001",
+        "Siemens PLC E001 HMI communication fault"
+    ],
+    "confidence_score": 0.90,
+    "processing_notes": "PLC communication issue with clear equipment identification"
+}
+```
+
+REQUIREMENTS:
+- Return ONLY valid JSON
+- filtered_query: 6-10 words maximum
+- query_variants: exactly 2 alternatives, never empty
+- Preserve ALL technical information (codes, models, components)
+- Remove emotional language ("I'm lost", "What should I do?")
+- Handle any industrial equipment: robots, PLCs, software, drives, etc.

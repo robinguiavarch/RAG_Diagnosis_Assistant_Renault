@@ -1,0 +1,163 @@
+
+============================================================
+ 🔀 TEST DU SYSTÈME DE FUSION 🔀
+============================================================
+
+============================================================
+ TEST DE NORMALISATION DES SCORES
+============================================================
+📊 Test normalisation avec données variées
+Résultats avant/après normalisation:
+   A: 1.50 → 0.2917
+   B: 3.20 → 1.0000
+   C: 0.80 → 0.0000
+   D: 2.10 → 0.5417
+✅ Min normalisé: 0.0000 (doit être 0.0)
+✅ Max normalisé: 1.0000 (doit être 1.0)
+
+📊 Test normalisation avec scores identiques
+   X: 2.50 → 1.0000
+   Y: 2.50 → 1.0000
+   Z: 2.50 → 1.0000
+
+📊 Test normalisation avec liste vide
+✅ Liste vide: 0 résultats
+
+============================================================
+ TEST DE LOGIQUE DE FUSION
+============================================================
+📝 Résultats BM25:
+   1. doc1|1: score=2.50
+   2. doc1|2: score=1.80
+   3. doc2|3: score=3.10
+   4. doc2|4: score=1.20
+
+🧠 Résultats FAISS:
+   1. doc1|1: score=0.85
+   2. doc2|3: score=0.92
+   3. doc3|5: score=0.78
+   4. doc3|6: score=0.65
+
+🔀 Résultats fusionnés (top-6):
+   1. doc2|3: fusionné=1.0000 (BM25=1.0000, FAISS=1.0000)
+   2. doc1|1: fusionné=0.7125 (BM25=0.6842, FAISS=0.7407)
+   3. doc3|5: fusionné=0.2407 (BM25=0.0000, FAISS=0.4815)
+   4. doc1|2: fusionné=0.1579 (BM25=0.3158, FAISS=0.0000)
+   5. doc2|4: fusionné=0.0000 (BM25=0.0000, FAISS=0.0000)
+   6. doc3|6: fusionné=0.0000 (BM25=0.0000, FAISS=0.0000)
+
+📊 ANALYSE:
+   📝 Chunks BM25 uniques: 4
+   🧠 Chunks FAISS uniques: 4
+   🔀 Chunks fusionnés: 6
+   🤝 Chunks en commun: 2
+
+============================================================
+ TEST DES CAS LIMITES
+============================================================
+📊 Test fusion avec listes vides
+   Listes vides: 0 résultats
+   BM25 seul: 1 résultats
+      Score fusionné: 0.5000
+      (BM25: 1.0000, FAISS: 0.0000)
+   Top-K > disponible: demandé 10, reçu 2
+
+============================================================
+ TEST AVEC VRAIS RETRIEVERS
+============================================================
+🔄 Initialisation BM25Retriever...
+✅ BM25Retriever initialisé
+🔄 Initialisation FAISSRetriever...
+✅ FAISSRetriever initialisé
+
+🔍 Requête: "I got the error ACAL-006 TPE operation error on the FANUC teach pendant. What should I do?"
+📊 Top-K: 5
+
+📝 Recherche BM25...
+   Trouvé: 0 résultats
+🧠 Recherche FAISS...
+   Trouvé: 5 résultats
+
+🔀 Fusion des résultats...
+   Résultats fusionnés: 5
+
+------------------------------------------------------------
+ COMPARAISON DES RÉSULTATS
+------------------------------------------------------------
+
+📝 TOP-3 BM25:
+
+🧠 TOP-3 FAISS:
+   1. Score: 0.6341 | doc-R-30iB|157
+      If any of the software version are not matched, a complete re-load with the correct software will be...
+   2. Score: 0.6104 | doc-R-30iB|33
+      Remedy: Use only one group in the program, and make sure group is available. ACAL-035 Press Shift Ke...
+   3. Score: 0.6069 | doc-R-30iB|1451
+      Typically, this is a force link call from a $PWR_NORMAL program. TPIF-172 Only available from pendan...
+
+🔀 TOP-5 FUSIONNÉS:
+
+🔀 RÉSULTAT FUSIONNÉ #1
+🆔 Document: doc-R-30iB
+🧩 Chunk: 157
+🎯 Score fusionné: 0.5000
+📝 Score BM25: 0.0000
+🧠 Score FAISS: 1.0000
+📖 TEXTE: If any of the software version are not matched, a complete re-load with the correct software will be necessary. Confirm that no incompatible or mutual...
+--------------------------------------------------
+
+🔀 RÉSULTAT FUSIONNÉ #2
+🆔 Document: doc-R-30iB
+🧩 Chunk: 33
+🎯 Score fusionné: 0.2627
+📝 Score BM25: 0.0000
+🧠 Score FAISS: 0.5255
+📖 TEXTE: Remedy: Use only one group in the program, and make sure group is available. ACAL-035 Press Shift Key. Cause: The SHIFT key was not pressed. Remedy: P...
+--------------------------------------------------
+
+🔀 RÉSULTAT FUSIONNÉ #3
+🆔 Document: doc-R-30iB
+🧩 Chunk: 1451
+🎯 Score fusionné: 0.2275
+📝 Score BM25: 0.0000
+🧠 Score FAISS: 0.4550
+📖 TEXTE: Typically, this is a force link call from a $PWR_NORMAL program. TPIF-172 Only available from pendant Cause: The operation you selected is only availa...
+--------------------------------------------------
+
+🔀 RÉSULTAT FUSIONNÉ #4
+🆔 Document: doc-R-30iB
+🧩 Chunk: 536
+🎯 Score fusionné: 0.0274
+📝 Score BM25: 0.0000
+🧠 Score FAISS: 0.0548
+📖 TEXTE: Remedy: (1) Set the currect port. (2) Check the device if it works fine. LANG-005 Program type is different Cause: Only able to process teach pendant ...
+--------------------------------------------------
+
+🔀 RÉSULTAT FUSIONNÉ #5
+🆔 Document: doc-R-30iB
+🧩 Chunk: 432
+🎯 Score fusionné: 0.0000
+📝 Score BM25: 0.0000
+🧠 Score FAISS: 0.0000
+📖 TEXTE: On the teach pendant, press and hold the SHIFT and RESET keys. While still pressing the SHIFT and RESET keys, turn on the robot. If 3–584 MARRBERCD 04...
+--------------------------------------------------
+
+------------------------------------------------------------
+ ANALYSE DE LA FUSION
+------------------------------------------------------------
+📊 STATISTIQUES:
+   🤝 Chunks communs: 0
+   📝 Chunks BM25 uniquement: 0
+   🧠 Chunks FAISS uniquement: 5
+   🔀 Chunks dans résultat final: 5
+
+📈 SCORES:
+   🎯 Score fusionné moyen: 0.2035
+   📝 Contribution BM25 moyenne: 0.0000
+   🧠 Contribution FAISS moyenne: 0.4071
+
+============================================================
+ ✅ TESTS DE FUSION TERMINÉS AVEC SUCCÈS
+============================================================
+🎉 Le système de fusion fonctionne correctement!
+🔀 La fusion combine intelligemment BM25 et FAISS!

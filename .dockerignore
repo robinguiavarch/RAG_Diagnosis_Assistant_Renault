@@ -1,0 +1,55 @@
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+
+# Fichiers de configuration locaux
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# Fichiers lourds et index locaux
+*.pkl
+outputs/
+data/index_faiss/
+data/symptom_embedding_dense/
+data/symptom_embedding_sparse/
+
+# IDE et éditeurs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+.dockerignore
+Dockerfile
+docker-commands.sh
+
+# Documentation
+README.md
+docs/
+
+# Tests non essentiels
+tests/coverage/
+.coverage
+.pytest_cache/

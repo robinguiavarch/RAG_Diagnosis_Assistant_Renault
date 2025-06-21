@@ -1,0 +1,192 @@
+
+==================================================
+ 🎯 TEST RAPIDE RERANKING_07.PY 🎯
+==================================================
+
+--------------------------------------------------
+ TEST: EXISTENCE
+--------------------------------------------------
+
+==================================================
+ EXISTENCE SCRIPT
+==================================================
+✅ Script trouvé (20151 bytes)
+✅ Existence: RÉUSSI (0.0s)
+
+--------------------------------------------------
+ TEST: DÉPENDANCES
+--------------------------------------------------
+
+==================================================
+ DIAGNOSTIC DÉPENDANCES ET CONFIG
+==================================================
+📁 Répertoire courant: /Users/robinguiavarch/Documents/git_projects/diagnosis_assistant_renault/rags
+📄 Config: config/settings.yaml
+📄 Config existe: True
+
+🎯 Configuration re-ranking:
+   enabled: True
+   top_k_before_rerank: 10
+   final_top_k: 5
+   reranker_model: cross-encoder/ms-marco-MiniLM-L-6-v2
+
+📊 Index requis:
+   BM25: data/bm25_index → True
+   FAISS: data/index_faiss → True
+
+🧪 Test dépendances avec reranking_07.py:
+📤 Code retour: 0
+📋 Sortie:
+   🔄 Test imports...
+   ✅ Imports retrieval OK
+   ✅ Import CrossEncoderReranker OK
+   ✅ Chargement config OK
+   🤖 Test modèle: cross-encoder/ms-marco-MiniLM-L-6-v2
+   🎯 Device disponible: cpu
+   📊 BM25 index: True
+   📊 FAISS index: True
+   📊 BM25 valide: True
+   📊 FAISS index.faiss: True
+   📊 FAISS metadata.pkl: True
+
+✅ CrossEncoderReranker disponible
+✅ Dépendances: RÉUSSI (3.2s)
+
+--------------------------------------------------
+ TEST: AIDE
+--------------------------------------------------
+
+==================================================
+ COMMANDE AIDE
+==================================================
+🔄 Lancement aide reranking... (timeout: 15s)
+✅ Terminé en 0.2s
+❌ Problème aide ou options manquantes
+🔍 Sortie aide:
+❌ Aide: ÉCHEC (0.2s)
+
+--------------------------------------------------
+ TEST: PIPELINE COMPLET
+--------------------------------------------------
+
+==================================================
+ PIPELINE COMPLET AVEC RE-RANKING
+==================================================
+🔍 Test pipeline complet depuis: /Users/robinguiavarch/Documents/git_projects/diagnosis_assistant_renault/rags
+🔄 Lancement pipeline complet... (timeout: 90s)
+✅ Terminé en 5.5s
+📤 Code retour: 0
+
+📋 Analyse du pipeline:
+   ✅ Initialisation: détecté
+      L  3: 🔍 Initialisation des composants RAG......
+   ✅ BM25: détecté
+      L  4: ✅ BM25Retriever initialisé...
+      L 12: 📝 BM25: 1510 chunks, 1 docs...
+   ✅ FAISS: détecté
+      L  5: ✅ FAISSRetriever initialisé...
+      L 13: 🧠 FAISS: 1510 vecteurs, dim=384...
+   ✅ Fusion: détecté
+      L 21: ⚖️ Fusion des résultats......
+      L 22: 🔀 Fusion: 10 résultats (0.00s)...
+   ✅ Re-ranking: détecté
+      L  6: 🔄 Chargement CrossEncoder: cross-encoder/ms-marco-MiniLM-L-6-v2...
+      L  7: 🎯 Device cible: cpu...
+   ✅ Statistiques: détecté
+      L 11: 📊 STATISTIQUES:...
+      L 12: 📝 BM25: 1510 chunks, 1 docs...
+   ❌ Erreurs: non détecté
+
+💾 Fichiers créés: 1
+📊 Métadonnées JSON:
+   méthode: hybrid_bm25_faiss_crossencoder
+   étapes: ['bm25', 'faiss', 'fusion', 'cross_encoder_rerank']
+   résultats: 5
+   re-ranking effectué: True
+📈 Scores du premier résultat:
+   CrossEncoder: 4.7915
+   Fusion: 0.0617
+   Rang original: #6
+⏱️ Performance:
+   total_time_seconds: 0.304s
+   bm25_time_seconds: 0.008s
+   faiss_time_seconds: 0.093s
+   fusion_time_seconds: 0.000s
+   rerank_time_seconds: 0.203s
+✅ Pipeline complet fonctionnel avec re-ranking
+✅ Pipeline complet: RÉUSSI (5.5s)
+
+--------------------------------------------------
+ TEST: BENCHMARK
+--------------------------------------------------
+
+==================================================
+ MODE BENCHMARK
+==================================================
+🔄 Lancement benchmark reranker... (timeout: 30s)
+✅ Terminé en 3.8s
+   📊 🚀 Mode benchmark du CrossEncoder...
+   📊 🚀 Benchmark CrossEncoder: 5 documents, 5 runs
+   📊 📊 Résultats benchmark:
+   📊 avg_time_seconds: 0.016172266006469725
+✅ Benchmark fonctionnel
+✅ Benchmark: RÉUSSI (3.8s)
+
+--------------------------------------------------
+ TEST: GESTION ERREURS
+--------------------------------------------------
+
+==================================================
+ GESTION ERREURS RERANKING
+==================================================
+
+📊 Test: Config inexistante
+🔄 Lancement Config inexistante... (timeout: 25s)
+✅ Terminé en 2.5s
+   ✅ Échec attendu correctement géré
+
+📊 Test: Query manquante avec input
+🔄 Lancement Query manquante avec input... (timeout: 25s)
+✅ Terminé en 2.5s
+   ✅ Échec attendu correctement géré
+✅ Gestion erreurs: RÉUSSI (5.0s)
+
+--------------------------------------------------
+ TEST: PERFORMANCE
+--------------------------------------------------
+
+==================================================
+ PERFORMANCE COMPARATIVE
+==================================================
+📊 Test 1: Sans re-ranking (baseline)
+🔄 Lancement baseline sans reranking... (timeout: 30s)
+✅ Terminé en 0.2s
+   Baseline: ❌ (0.2s)
+
+📊 Test 2: Avec re-ranking
+🔄 Lancement avec reranking... (timeout: 60s)
+✅ Terminé en 5.4s
+   Re-ranking: ✅ (5.4s)
+
+📈 ANALYSE COMPARATIVE:
+   ✅ Re-ranking fonctionne (baseline échoué)
+✅ Performance: RÉUSSI (5.6s)
+
+==================================================
+ 📊 RAPPORT RERANKING
+==================================================
+⏱️ Temps total: 23.3s
+✅ Tests réussis: 6/7
+📈 Taux de réussite: 85.7%
+
+📋 Détail par test:
+   ✅ Existence: 0.0s
+   ✅ Dépendances: 3.2s
+   ❌ Aide: 0.2s
+   ✅ Pipeline complet: 5.5s
+   ✅ Benchmark: 3.8s
+   ✅ Gestion erreurs: 5.0s
+   ✅ Performance: 5.6s
+
+🎉 PIPELINE DE RERANKING FONCTIONNEL!
+🏅 Le système CrossEncoder est opérationnel

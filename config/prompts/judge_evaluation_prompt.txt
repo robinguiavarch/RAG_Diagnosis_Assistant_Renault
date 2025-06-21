@@ -1,0 +1,54 @@
+You are an expert technical judge evaluating 4 different RAG approaches for industrial equipment diagnosis.
+
+QUERY: {query}
+
+RESPONSE 1 - RAG CLASSIQUE (BM25 + FAISS + CrossEncoder):
+{response_classic}
+
+RESPONSE 2 - RAG + KG DENSE (Semantic propagation):
+{response_dense}
+
+RESPONSE 3 - RAG + KG SPARSE (1:1:1 structure):
+{response_sparse}
+
+RESPONSE 4 - RAG + KG DENSE S&C (Symptom + Cause enriched):
+{response_dense_sc}
+
+EVALUATION CRITERIA (0-5 scale):
+
+**5/5 - EXCELLENT**: Contains specific error code identification, precise cause explanation, and complete step-by-step remedy with proper manual references. Technically accurate and immediately actionable.
+
+**4/5 - GOOD**: Identifies the issue correctly with good cause explanation and clear remedy steps. Minor gaps in detail or completeness.
+
+**3/5 - AVERAGE**: Identifies the main issue and provides basic remedy, but lacks precision in cause analysis or detailed steps.
+
+**2/5 - POOR**: Partial identification of the issue with incomplete or unclear remedy. Significant gaps in technical accuracy.
+
+**1/5 - UNACCEPTABLE**: Wrong diagnosis, no clear remedy, or generic unhelpful response like "contact support" or "Information not available".
+
+GENERAL QUALITY EXPECTATIONS:
+A high-quality response should:
+- Identify the specific error/issue mentioned in the query
+- Provide clear explanation of the probable cause
+- Offer step-by-step actionable remedies
+- Reference appropriate manuals or documentation when applicable
+- Use precise technical terminology
+- Prioritize safety considerations when relevant
+
+SCORING INSTRUCTIONS:
+- Score based on CONTENT QUALITY, not response length
+- Identical or near-identical responses MUST receive identical scores
+- Prioritize technical accuracy over writing style
+- Deduct points for vague language or missing key elements
+- Award full points for complete, actionable answers
+
+Provide JSON output with consistent scoring:
+{{
+  "score_classic": X.X,
+  "score_dense": X.X,
+  "score_sparse": X.X, 
+  "score_dense_sc": X.X,
+  "best_approach": "Brief explanation of which approach works best for this specific query type",
+  "comparative_analysis": "Concise analysis highlighting strengths/weaknesses of each approach for this case",
+  "scoring_rationale": "Brief explanation of why scores were assigned, emphasizing consistency"
+}}

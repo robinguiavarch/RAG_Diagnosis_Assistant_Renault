@@ -1,0 +1,431 @@
+
+============================================================
+ 🧪 TEST DU BM25RETRIEVER LEXICAL 🧪
+============================================================
+
+============================================================
+ TEST DES FONCTIONNALITÉS DE BASE
+============================================================
+📁 Index BM25: data/bm25_index
+
+🔄 Initialisation du BM25Retriever...
+✅ Retriever initialisé avec succès
+
+📊 STATISTIQUES DE L'INDEX:
+   📄 Total chunks: 1510
+   📋 Documents uniques: 1
+   📈 Chunks/document (moy): 1510.0
+
+============================================================
+ TEST DES REQUÊTES DE RECHERCHE
+============================================================
+
+------------------------------------------------------------
+ REQUÊTE 1: Requête principale - Erreur FANUC ACAL-006
+------------------------------------------------------------
+🔍 Requête: "I got the error ACAL-006 TPE operation error on the FANUC teach pendant. What should I do?"
+📊 Top-K: 5
+❌ Aucun résultat trouvé
+🐛 Debug - requête nettoyée: "I got the error ACAL 006 TPE operation error on the FANUC teach pendant. What should I do"
+🐛 Debug - stats index: {'total_chunks': 1510, 'unique_documents': 1, 'avg_chunks_per_doc': 1510.0}
+
+------------------------------------------------------------
+ REQUÊTE 2: Requête simplifiée - Mots-clés FANUC
+------------------------------------------------------------
+🔍 Requête: "FANUC error ACAL-006"
+📊 Top-K: 3
+✅ 1 résultat(s) trouvé(s)
+
+📄 RÉSULTAT #1
+🆔 Document: doc-R-30iB
+🧩 Chunk: 44
+📊 Score BM25: 15.5503
+📝 Mots: 399
+🔤 Caractères: 2460
+⭐ Qualité: 0.9949874686716792
+📂 Source: doc-R-30iB_chunks.json
+🔧 Méthode: sentence
+📖 TEXTE:
+--------------------------------------------------
+ACAL-142 Robot is not calibrated Gd(:%) Cause: The robot group has not been
+calibrated. Remedy: Please run signature calibration of before running program
+motions. 3–27 ERROR CODES MARRBERCD 04121 E REV N ACAL-143 Not enough
+orientation. Cause: Not enough orientation to solve for the TCP Remedy: Please
+touch up some positions to include larger orientation of the 3.1.2 APSH Alarm
+Code APSH-000 %s Cause: General status messages. Remedy: None APSH-001 %s
+missing Cause: A MACRO was called without a parameter that must be entered.
+Remedy: Check the MACRO call in the TP program. Remedy: Please run signature
+calibration of before running program motions. The parameter has the wrong data
+type. Remedy: Check the MACRO call in the TP program. APSH-003 %s Illegal zone
+number Cause: An zone number less that 1 or greater than $IZONEIO.$NO_ZONES was
+used. Remedy: Use an event number from 1 to $IZONEIO.$NO_ZONES. APSH-004 Waiting
+for interf. zone %s Cause: The robot has request ed an interferance zone, but
+has not been given permission to enter by the cell controller. 3–28 MARRBERCD
+04121 E REV N ERROR CODES Remedy: If the cell controller does not give control
+of an interferance zone to the robot when it should, check the cell con troll
+ers' interferance zone program ming. APSH-005 Entering interf. zone %s Cause:
+The robot has received permission to enter the interferance zone. Remedy: Used
+to clear the waiting for interferance zone message only. APSH-006 PERM memory is
+low Cause: This warning indic tates that the amount of free memory in the CMOS
+memory partition has gotten dangerously low. If the PERM memory runs out, you
+will experience strange MEMO errors and possibly robot lock-ups or register
+dumps. Remedy: Warning only. Delete any unneeded data. Contact your FANUC
+representative with this error. You will probably have to adjust the memory
+configuration in your robot controller. APSH-007 TEMP DRAM memory is low Cause:
+This warning indic ates that the amount of free memory in the TEMP memory
+partition has gotten dangerously low. If the TEMP memory runs out, you will
+experience strange MEMO errors and possibly robot lock-ups or register dumps.
+Remedy: Warning only. Delete any unneeded data. Contact your FANUC
+representative with this error. You will probably have to adjust the memory
+configuration in your robot controller. APSH-008 FAULT must be reset Cause: A
+fault has ocurred, so the operation request ed cannot be per formed.
+--------------------------------------------------
+
+📈 ANALYSE DES SCORES:
+   🎯 Score max: 15.5503
+   📊 Score min: 15.5503
+   📈 Score moyen: 15.5503
+
+------------------------------------------------------------
+ REQUÊTE 3: Requête technique - TPE teach pendant
+------------------------------------------------------------
+🔍 Requête: "TPE operation error teach pendant"
+📊 Top-K: 3
+✅ 3 résultat(s) trouvé(s)
+
+📄 RÉSULTAT #1
+🆔 Document: doc-R-30iB
+🧩 Chunk: 741
+📊 Score BM25: 23.5866
+📝 Mots: 392
+🔤 Caractères: 2385
+⭐ Qualité: 1.0
+📂 Source: doc-R-30iB_chunks.json
+🔧 Méthode: sentence
+📖 TEXTE:
+--------------------------------------------------
+Remedy: Teach the ENT_SRV. TP program. PNT 1-273 Ent Srv pos in prog is
+undefined Cause: The Robot EXIT_SRV program is not taught. Remedy: Teach the
+EXIT_SRV. TP program. PNT 1-276 Error opening TPE program Cause: This error
+should never occur during normal Paint Tool operation. Remedy: Contact FANUC
+America Corporation service personnel. PNT 1-277 TPE Built-in error Cause: An
+failed attempt was made to perform a software operation on a specific teach
+pendant program. This error should never occur during normal Paint Tool
+operation. 3–1019 ERROR CODES MARRBERCD 04121 E REV N Remedy: Contact FANUC
+America Corporation service personnel. PNT 1-272 Exit Srv pos in prog is
+undefined Cause: The robot ENT_SRV program is not taught. In the event that this
+alarm was posted, Paint Tool was making an attempt to extract data from a
+specific teach pendant program, but failed. Remedy: Ensure that the teach
+pendant program is install ed on the controller, or contact FANUC America
+Corporation service personnel. PNT 1-279 TPE error reading instruction Cause:
+This error should never occur during normal Paint Tool operation. In the event
+that this alarm was posted, Paint Tool was making an attempt to extract
+positional data from a specific teach pendant program, but failed. Remedy:
+Ensure that the teach pendant program is install ed on the controller, or
+contact Fanuc service personnel. PNT 1-280 TPE wrong type of program:%s Cause:
+This error should never occur during normal Paint Tool operation. In the event
+that this alarm was posted, Paint Tool was making an attempt to read data from a
+specific teach pendant program but failed because the teach pendant program does
+not exist, or the file type is not a teach pendant program. Remedy: Ensure that
+the teach pendant program is install ed on the controller, or contact FANUC
+America Corporation service personnel. PNT 1-281 TPE error closing a program
+Cause: This error should never occur during normal Paint Tool operation. In the
+event that this alarm was posted, Paint Tool was making an attempt to close an
+opened teach pendant program, but failed. Remedy: Contact FANUC America
+Corporation service personnel. PNT 1-282 Selected program not found Cause: The
+job that is selected for DATA ZONE EDIT or TEST RUN does not exist. 3–1020
+MARRBERCD 04121 E REV N ERROR CODES Remedy: Generate the job or select a job
+that exists.
+--------------------------------------------------
+
+📄 RÉSULTAT #2
+🆔 Document: doc-R-30iB
+🧩 Chunk: 742
+📊 Score BM25: 21.9251
+📝 Mots: 392
+🔤 Caractères: 2404
+⭐ Qualité: 1.0
+📂 Source: doc-R-30iB_chunks.json
+🔧 Méthode: sentence
+📖 TEXTE:
+--------------------------------------------------
+PNT 1-281 TPE error closing a program Cause: This error should never occur
+during normal Paint Tool operation. In the event that this alarm was posted,
+Paint Tool was making an attempt to close an opened teach pendant program, but
+failed. Remedy: Contact FANUC America Corporation service personnel. PNT 1-282
+Selected program not found Cause: The job that is selected for DATA ZONE EDIT or
+TEST RUN does not exist. 3–1020 MARRBERCD 04121 E REV N ERROR CODES Remedy:
+Generate the job or select a job that exists. Remedy: Ensure that the teach
+pendant program is install ed on the controller, or contact FANUC America
+Corporation service personnel. Remedy: This will not affect the X-Rail smoothing
+process. Choose another smoothing range if necessary. PNT 1-284 TPE's motion
+group must be 1 Cause: The motion group of teach pendant program must be 1 when
+using the X-Rail Manager. Remedy: Choose another teach pendant program that uses
+motion group PNT 1-285 TPE Header size mismatch Cause: The teach pendant program
+header size is inadequate. The program might have been created on an older
+software version. Or, the program header information might not be stored
+correctly. Remedy: Try select ing the program, then select ing DETAIL, then
+NEXT, then END. If this does not work, create a new teach pendant program, and
+paste the lines from the old program into it. PNT 1-286 Uninitialized TPE
+position in program %s Cause: There was an uninitialized position found in the
+specified special move position. This could have occur red if a new position was
+re corded in one of the special move programs when the robot was not master ed
+or calibrated, causing an uninitialized position to be created. Executing a
+specific operation afterwards might cause this alarm to occur. Remedy: Ensure
+the robot is master ed and calibrated. Re-teach the position in the special move
+program indicated by the alarm. PNT 1-287 Too many Preset[] instructions %s
+Cause: There are only 20 Preset[] instructions allowed to be programmed in each
+PROCESS program, a combination of attached or standalone instructions. when the
+robot wasn't master ed or 3–1021 ERROR CODES MARRBERCD 04121 E REV N calibrated,
+causing an uninitialized position to be created. Executing a specific operation
+afterwards may cause this alarm to occur. Remedy: Eliminate Preset[]
+instructions in this PROCESS program or use multiple PROCESS programs.
+--------------------------------------------------
+
+📄 RÉSULTAT #3
+🆔 Document: doc-R-30iB
+🧩 Chunk: 740
+📊 Score BM25: 18.5866
+📝 Mots: 399
+🔤 Caractères: 2358
+⭐ Qualité: 1.0
+📂 Source: doc-R-30iB_chunks.json
+🔧 Méthode: sentence
+📖 TEXTE:
+--------------------------------------------------
+If it was a retracted fault, ensure that the pusher retracted fully at Speed
+Dock side A or B and that the valve is not stuck in the extended state. Ensure
+that sufficient air pressure is available for this operation and that the air
+lines are connected. PNT 1-266 Speed Dock EXTEND Error Cause: An attempt was
+made to extend the Speed Dock docking mechanism at side A or B, and failed.
+Remedy: Check the sensors at Speed Dock docking mechanism. Ensure that
+sufficient air pressure is available for this operation and that the air lines
+are connected securely. If it was an extended fault, ensure that the pusher
+extended fully at Speed Dock side A or B. Remedy: Check the sensors at the Speed
+Dock docking mechanism. Ensure that sufficient air pressure is available for
+this operation, and that the air lines are connected securely. 3–1018 MARRBERCD
+04121 E REV N ERROR CODES PNT 1-270 Retract Hard Stop Error Cause: An attempt
+was made to Retract the hard stop from its normal state, but the operation
+failed. Remedy: Determine if the hard stop physically retracted. If so, check
+the functionality of the sensors. Ensure that the I/O is mapped correctly. If
+the hard stop did not retract, determine if the hard stop received the RETRACT
+output signal. PNT 1-271 Extend Hard Stop Error Cause: An attempt was made to
+extend the hard stop to its normal state, but the operation failed. Remedy:
+Determine if the hard stop physically extended. If so, check the functionality
+of the sensors. Ensure that the I/O is mapped correctly. If the hard stop did
+not extend, determine if the hard stop received the EXTEND output signal. PNT
+1-272 Exit Srv pos in prog is undefined Cause: The robot ENT_SRV program is not
+taught. Remedy: Teach the ENT_SRV. TP program. PNT 1-273 Ent Srv pos in prog is
+undefined Cause: The Robot EXIT_SRV program is not taught. Remedy: Teach the
+EXIT_SRV. TP program. PNT 1-276 Error opening TPE program Cause: This error
+should never occur during normal Paint Tool operation. Remedy: Contact FANUC
+America Corporation service personnel. PNT 1-277 TPE Built-in error Cause: An
+failed attempt was made to perform a software operation on a specific teach
+pendant program. This error should never occur during normal Paint Tool
+operation. 3–1019 ERROR CODES MARRBERCD 04121 E REV N Remedy: Contact FANUC
+America Corporation service personnel.
+--------------------------------------------------
+
+📈 ANALYSE DES SCORES:
+   🎯 Score max: 23.5866
+   📊 Score min: 18.5866
+   📈 Score moyen: 21.3661
+
+------------------------------------------------------------
+ REQUÊTE 4: Requête générale - Erreur calibration
+------------------------------------------------------------
+🔍 Requête: "robot calibration error"
+📊 Top-K: 3
+✅ 3 résultat(s) trouvé(s)
+
+📄 RÉSULTAT #1
+🆔 Document: doc-R-30iB
+🧩 Chunk: 209
+📊 Score BM25: 10.6305
+📝 Mots: 394
+🔤 Caractères: 2429
+⭐ Qualité: 1.0
+📂 Source: doc-R-30iB_chunks.json
+🔧 Méthode: sentence
+📖 TEXTE:
+--------------------------------------------------
+CVIS-198 Layer threshold exceed ed limit Cause: The calculated layer value
+exceed ed threshold limit. Remedy: Adjust the layer tolerance parameter.
+CVIS-199 Layer output number is used elsewhere Cause: Layer output number is
+used by measurement output. Remedy: Change the layer output number. CVIS-200 The
+camera calibration tool is not trained. Cause: The camera calibration has not
+been trained. Remedy: Train the camera calibration. CVIS-201 The camera
+calibration tool is corrupted. Cause: The calibration data might be corrupted.
+Remedy: Create a new calibration data. CVIS-202 The camera calibration tool is
+corrupted. Remedy: Check if the specified vision tool exists, and select the
+correct name. Remedy: Find the calibration points. 3–247 ERROR CODES MARRBERCD
+04121 E REV N CVIS-203 Invalid calibration plane number. Cause: An invalid
+calibration plane number is passed to the CAMERA_CALIB command. Remedy: Enter
+the correct plane number to the CAMERA_CALIB command. CVIS-204 Either camera or
+fixture needs to be mounted on a robot. Cause: Either the camera or fixture
+needs to be mounted on a robot for 2-plane calibration. Remedy: Mount either the
+camera or fixture on a robot, and retry the operation. CVIS-205 Both camera and
+fixture should not be mounted on a robot. Cause: Both the camera and fixture
+should not be mounted on robots. Remedy: Fix either the camera or fixture on a
+table or other sturdy surface. CVIS-206 No robot position for robot mounted
+camera. Cause: The position of the robot holding the camera is unknown. Remedy:
+You need to snap an image from the camera instead of loading an image file.
+CVIS-207 No robot position for robot mounted fixture. Cause: The position of the
+robot holding fixture is unknown. Remedy: You need to snap an image from the
+camera instead of loading an image from a file. CVIS-208 No robot position for
+robot mounted fixture. Cause: The index of the calibration point is out of
+range. Remedy: Type a correct index of the calibration point. 3–248 MARRBERCD
+04121 E REV N ERROR CODES CVIS-209 The calibration points are too close to each
+other. Cause: Simple 2-D calibration error. Calibration data cannot be
+calculated because the two calibration points are too close to each other.
+Remedy: Teach two points that are farther apart. CVIS-210 The calibration points
+are too close to each other. Cause: The robot position is needed when the
+fixture is mounted on a robot.
+--------------------------------------------------
+
+📄 RÉSULTAT #2
+🆔 Document: doc-R-30iB
+🧩 Chunk: 210
+📊 Score BM25: 10.5577
+📝 Mots: 396
+🔤 Caractères: 2360
+⭐ Qualité: 1.0
+📂 Source: doc-R-30iB_chunks.json
+🔧 Méthode: sentence
+📖 TEXTE:
+--------------------------------------------------
+CVIS-208 No robot position for robot mounted fixture. Cause: The index of the
+calibration point is out of range. Remedy: Type a correct index of the
+calibration point. 3–248 MARRBERCD 04121 E REV N ERROR CODES CVIS-209 The
+calibration points are too close to each other. Cause: Simple 2-D calibration
+error. Calibration data cannot be calculated because the two calibration points
+are too close to each other. Remedy: Teach two points that are farther apart.
+CVIS-210 The calibration points are too close to each other. Cause: The robot
+position is needed when the fixture is mounted on a robot. Remedy: You need to
+snap an image from the camera instead of loading an image from a file. This
+alarm might occur when you are using an image loaded from a file. Remedy: Snap
+the image from a camera to use a real world- image. CVIS-211 The calibration
+points are too close to each other. Cause: The plane specified in the
+CAMERA_CALIB is disabled. Remedy: Enable the calibration plane, or pass another
+index to the CAMERA_CALIB. CVIS-212 No robot position for robot mounted camera.
+Cause: The robot position at calibration is needed for the robot mounted-
+camera. Remedy: You cannot use an image file for calibration of robot mounted-
+camera. Snap a new image from a camera instead of loading image file. CVIS-213
+Robot positions for two points must be the same. Cause: The calibration points
+must be set with the same camera position. Remedy: Do not move the robot holding
+the camera during the calibration. CVIS-214 Laser calibration fails. Cause: No
+calibration data was calculated for the 3 D laser sensor. Remedy: Perform
+calibration again. 3–249 ERROR CODES MARRBERCD 04121 E REV N CVIS-215 Laser
+frame cannot be calculated. Cause: No calibration data was calculated for the 3
+D laser sensor. Remedy: Perform calibration again. CVIS-216 Laser window is not
+trained. Cause: No laser measurement area has been set up. Remedy: Set up the
+measurement area. CVIS-217 No laser image. Cause: No laser image was taken.
+Remedy: Snap an image using the Snap button. CVIS-218 No found pose of parent
+locator tool. Cause: The parent tool of the associate tool has not been found.
+Remedy: Check whether the target is within the camera view. Adjust the parent
+tool parameters and model so that the parent tool can be found normally.
+CVIS-219 Histogram tool is not trained.
+--------------------------------------------------
+
+📄 RÉSULTAT #3
+🆔 Document: doc-R-30iB
+🧩 Chunk: 43
+📊 Score BM25: 10.4035
+📝 Mots: 397
+🔤 Caractères: 2620
+⭐ Qualité: 1.0
+📂 Source: doc-R-30iB_chunks.json
+🔧 Méthode: sentence
+📖 TEXTE:
+--------------------------------------------------
+Remedy: No action necesary ACAL-130 Filter not empty Cause: Motion is still
+active Remedy: Use FINE term type 3–25 ERROR CODES MARRBERCD 04121 E REV N
+ACAL-131 Invalid motion change Cause: Motion changed Remedy: Remove any motion
+options on the TP motion line ACAL-132 Invalid Selection Cause: Invalid
+Signature Setting Remedy: TCP and UFrame cannot be both FALSE for UFrame and
+UTool calibration. ACAL-133 Mismatch measure points Cause: The number of
+measured points does not match the number of command points. Remedy: Please
+re-do the calibration. ACAL-134 DC compensation clamped Cause: The DC
+compensation exceed preset threshold. Not in High Accuracy Mode. residual tol.
+Cause: Maximum residual error of calculation exceed tolerance. Remedy: 1 Review
+the calibration procedure. 2 Re-do the calibration. ACAL-136 Exceed mean
+residual tol. Cause: Mean residual error of calculation exceed tolerance.
+Remedy: 1 Review the calibration procedure. 2 Re-do the calibration. 3–26
+MARRBERCD 04121 E REV N ERROR CODES ACAL-137 Exceed max. error tol. Cause:
+Maximum error of validation exceed tolerance. Remedy: 1 Review the calibration
+procedure. 2 Re-do the calibration. ACAL-138 Exceed mean error tol. Cause: Mean
+error of validation exceed tolerance. Remedy: 1 Review the calibration
+procedure. 2 Re-do the calibration. ACAL-139 SIG Unexpected Motion Gd(:%) Cause:
+A current robot position that software calculates is abnormal. Remedy: Master
+ing data could be incorrect. Confirm whether incorrect backup data is restored
+or master ing has been executed at the wrong position. In that case, execute
+master ing. Document the events that led to the error, and contact your FANUC
+technical representative. ACAL-140 Not enough calibration points Cause: Not
+enough calibration points to compute signature parameters. Remedy: Add more
+calibration position in the position TP program. ACAL-141 Robot is not
+calibrated Gd(:%) Cause: The robot group has not been calibrated. Remedy: Please
+run signature calibration of before running program motions. ACAL-142 Robot is
+not calibrated Gd(:%) Cause: The robot group has not been calibrated. Remedy:
+Please run signature calibration of before running program motions. 3–27 ERROR
+CODES MARRBERCD 04121 E REV N ACAL-143 Not enough orientation. Cause: Not enough
+orientation to solve for the TCP Remedy: Please touch up some positions to
+include larger orientation of the 3.1.2 APSH Alarm Code APSH-000 %s Cause:
+General status messages. Remedy: None APSH-001 %s missing Cause: A MACRO was
+called without a parameter that must be entered. Remedy: Check the MACRO call in
+the TP program.
+--------------------------------------------------
+
+📈 ANALYSE DES SCORES:
+   🎯 Score max: 10.6305
+   📊 Score min: 10.4035
+   📈 Score moyen: 10.5306
+
+------------------------------------------------------------
+ REQUÊTE 5: Requête générale - Diagnostic
+------------------------------------------------------------
+🔍 Requête: "diagnostic troubleshooting"
+📊 Top-K: 3
+❌ Aucun résultat trouvé
+🐛 Debug - requête nettoyée: "diagnostic troubleshooting"
+🐛 Debug - stats index: {'total_chunks': 1510, 'unique_documents': 1, 'avg_chunks_per_doc': 1510.0}
+
+============================================================
+ TEST DES CAS LIMITES
+============================================================
+
+🧪 Cas limite 1: ""
+   📊 Résultats: 0
+
+🧪 Cas limite 2: "   "
+   📊 Résultats: 0
+
+🧪 Cas limite 3: "azertyuiopqsdfghjklm"
+   📊 Résultats: 0
+
+🧪 Cas limite 4: "a"
+   📊 Résultats: 0
+
+🧪 Cas limite 5: "the and or in on at"
+   📊 Résultats: 0
+
+🧪 Cas limite 6: "error!!! ???"
+   📊 Résultats: 2
+   🎯 Meilleur score: 2.2076
+
+🧪 Cas limite 7: "FANUC FANUC FANUC error error error"
+   📊 Résultats: 2
+   🎯 Meilleur score: 6.4950
+
+============================================================
+ TEST DE PERFORMANCE
+============================================================
+🏃 Test de 10 recherches avec: "FANUC error ACAL-006 TPE operation"
+⏱️ Temps total: 0.029s
+⚡ Temps moyen par recherche: 0.003s
+📊 0 résultats par recherche
+🚀 Recherches/seconde: 345.7
+
+============================================================
+ ✅ TESTS TERMINÉS AVEC SUCCÈS
+============================================================
+🎉 Le BM25Retriever fonctionne correctement!

@@ -1,0 +1,10 @@
+Here are excerpts from technical documents:
+
+{context}
+
+Question: {query}
+
+Answer clearly and precisely, strictly based on the provided context. 
+If the answer is not in the context, explicitly state "Information not available in the provided context".
+Answer in English only.
+Answer:

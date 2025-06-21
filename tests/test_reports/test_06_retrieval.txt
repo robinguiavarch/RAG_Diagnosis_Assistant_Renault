@@ -1,0 +1,4 @@
+  File "/Users/robinguiavarch/Documents/git_projects/diagnosis_assistant_renault/rag_avec_kg/tests/test_06_retrieval.py", line 28
+    from scripts.06_retrieval import (
+                   ^
+SyntaxError: invalid decimal literal

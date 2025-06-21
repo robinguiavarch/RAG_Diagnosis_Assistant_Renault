@@ -1,0 +1,1075 @@
+
+============================================================
+ 🧠 TEST DU FAISSRETRIEVER SÉMANTIQUE 🧠
+============================================================
+
+============================================================
+ TEST DES FONCTIONNALITÉS DE BASE
+============================================================
+📁 Index FAISS: data/index_faiss/index.faiss
+📄 Métadonnées: data/index_faiss/metadata.pkl
+🤖 Modèle: sentence-transformers/all-MiniLM-L6-v2
+
+🔄 Initialisation du FAISSRetriever...
+✅ Retriever initialisé avec succès
+
+📊 STATISTIQUES DE L'INDEX:
+   🔢 Total vecteurs: 1510
+   📏 Dimension: 384
+   🏗️ Type d'index: IndexHNSWFlat
+   📋 Documents uniques: 1
+   📄 Total chunks: 1510
+   📈 Chunks/document (moy): 1510.0
+   💻 Device modèle: cpu
+   📦 Format métadonnées: new
+
+============================================================
+ TEST DES REQUÊTES SÉMANTIQUES
+============================================================
+
+------------------------------------------------------------
+ REQUÊTE 1: Requête principale - Erreur FANUC ACAL-006
+------------------------------------------------------------
+🧠 Requête: "I got the error ACAL-006 TPE operation error on the FANUC teach pendant. What should I do?"
+📊 Top-K: 5
+✅ 5 résultat(s) trouvé(s)
+
+🧠 RÉSULTAT SÉMANTIQUE #1
+🆔 Document: doc-R-30iB
+🧩 Chunk: 157
+📊 Score similarité: 0.6341
+📏 Distance L2: 0.5769
+📝 Mots: 400
+🔤 Caractères: 2428
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+If any of the software version are not matched, a complete re-load with the
+correct software will be necessary. Confirm that no incompatible or mutually
+exclusive options have been loaded. Perform a full software reload. If the error
+is not cleared, document the events that led to the error and call your FANUC
+America Corporation technical representative. CPMO-038 Non Zero JBF Remainder(G:
+%d^2) Cause: Internal INTR error: A empty JBFset has non-zero remainder Remedy:
+Press RESET. If the error still exists, document the events that led to the
+error and call your FANUC America Corporation technical representative. Also
+make sure that the installation manual being used is for this version of
+software. On the teach pendant, press and hold the SHIFT and RESET keys. While
+still pressing the SHIFT and RESET keys, turn on the robot. If the error is not
+cleared, document the events that led to the error and call your FANUC America
+Corporation technical representative. 3–187 ERROR CODES MARRBERCD 04121 E REV N
+CPMO-040 GTF not empty (G: %d^2) Cause: An Internal INTR error has occur red.
+This class of error should not be encounter ed during normal operation Remedy:
+The system might have been corrupted. This might have been caused by any of a
+number of reasons including: Incorrect loading and setup loading incompatible
+options, mixing software version when adding options and other memory corruption
+problems. The following is a list of possible remedies: Perform a Cold start.
+Perform an Init start and set up the robot again Confirm that any options or
+additional software not on the original software distribution media is the same
+version number. If the main system software was sup plied on several disks or
+memory cards, make sure that you are using a matched set. Also make sure that
+the installation manual being used is for this version of software. If any of
+the software version are not matched, a complete re-load with the correct
+software will be necessary. Confirm that no incompatible or mutually exclusive
+options have been loaded. Perform a full software reload. If the error is not
+cleared, document the events that led to the error and call your FANUC America
+Corporation technical representative. CPMO-041 GTF no main filter (G: %d^2)
+Cause: An Internal INTR error has occur red. This class of error should not be
+encounter ed during normal operation. Remedy: The system might have been
+corrupted.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #2
+🆔 Document: doc-R-30iB
+🧩 Chunk: 33
+📊 Score similarité: 0.6104
+📏 Distance L2: 0.6383
+📝 Mots: 399
+🔤 Caractères: 2456
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+Remedy: Use only one group in the program, and make sure group is available.
+ACAL-035 Press Shift Key. Cause: The SHIFT key was not pressed. Remedy: Press
+the SHIFT key. ACAL-036 Failed to create TPE program Cause: The teach pendant
+program could not be created. Remedy: Check the following: • Make sure enough
+memory is available. • Make sure the program is not being edited. • Make sure
+the program is not write pro tec ted. ACAL-037 TPE Position is not re corded
+Cause: The teach pendant position has not been re corded. Cause: The motion
+group number is not right. Remedy: Un protect the write pro tec ted program.
+ACAL-038 TPE Program does not exist. Cause: The selected teach pendant program
+was not found and does not exist. Remedy: Select an exist ing teach pendant
+program. 3–10 MARRBERCD 04121 E REV N ERROR CODES ACAL-039 Move to re corded
+posn failed Cause: The robot could not move to the re corded position. Remedy:
+Make sure the position is reachable and that another program does not have
+motion control. ACAL-040 Invalid Detection TP program Cause: The detection teach
+pendant program is not usable. Remedy: Load a proper detection program. ACAL-041
+Override should be 100%. Cause: The speed override is not 100%. Remedy: Before
+running the program, increase the override to 100%. ACAL-042 Large orientation
+change. Cause: The found orientation is larger than the tolerance allows.
+Remedy: Adjust the object so that orientation is smaller. Increase the
+orientation tolerance. ACAL-043 Points & solution mismatch. Cause: The number of
+search points does not match the selected solution type. Remedy: Select a
+different solution type, or adjust number of detect statements. ACAL-044
+Solution type error. Cause: An unsupported solution type error was selected.
+Remedy: Choose a different solution type. 3–11 ERROR CODES MARRBERCD 04121 E REV
+N ACAL-045 Failed to set register. Cause: The specified register was not set.
+Remedy: Make sure the specified register exists. ACAL-046 Failed to convert
+position. Cause: The position failed to convert. The internal position was not
+set. Remedy: Make sure the points are taught in the proper sequence and are not
+near limits. ACAL-047 Too many points used. Cause: Too many points are used.
+Remedy: Reduce the number of detect points. ACAL-048 Solution failed. Cause: The
+solution failed to complete. Remedy: Make sure the correct number of points are
+taught in the correct directions and orientation.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #3
+🆔 Document: doc-R-30iB
+🧩 Chunk: 1451
+📊 Score similarité: 0.6069
+📏 Distance L2: 0.6478
+📝 Mots: 400
+🔤 Caractères: 2446
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+Typically, this is a force link call from a $PWR_NORMAL program. TPIF-172 Only
+available from pendant Cause: The operation you selected is only available from
+the teach pendant. Remedy: Perform this operation from the attached teach
+pendant. TPIF-173 The pos. can't be handled part repr. Cause: The position data
+is wrong. Refer to the cause code for details. Remedy: Change the position data
+correctly, and press F 5 DONE. TPIF-174 New pos. can't be handled part repr.
+Cause: The new position data is wrong. Refer to the cause code for details
+Remedy: Type the correct position data. Remedy: Wait until the i Pendant is
+initialized to do this operation. Remedy: None. 3–1884 MARRBERCD 04121 E REV N
+ERROR CODES TPIF-176 Illegal state(D 1:%d, D 2:%d) Cause: The situation
+unexpected by the software occured. The index value indic ates the reason.
+Remedy: Turn off controller power and turn it on again. If the problem persists,
+document the events that led to the error and contact your FANUC technical
+representative. TPIF-201 Next line exist. Cause: You cannot record motion line
+using the record button if the next line exists. Remedy: Move the cursor to the
+end of the program, and press the record button again. TPIF-203 Format does not
+match to unified specification Cause: Record status TUI( default motion) is not
+written in TUI motion format. Remedy: Select TUIDFMTN. to and teach J P[ ]
+R[101]% FINE DB 0.0 mm P-SPS as line P-SPS contains no line TPIF-204 There is
+not specified source program number. Cause: The input value is not correct.
+Remedy: Confirm the input value. TPIF-205 There is not specified source step
+number. Cause: The input value is not correct. Remedy: Confirm the input value.
+TPIF-206 The number of steps of source program doesn't suffice. Cause: The input
+value is not correct. Remedy: Confirm the input value. 3–1885 ERROR CODES
+MARRBERCD 04121 E REV N TPIF-207 There is not specified destination program
+number. Cause: The input value is not correct. Remedy: Confirm the input value.
+TPIF-208 There is not specified destination step number. Cause: The input value
+is not correct. Remedy: Confirm the input value. TPIF-209 Because destination
+program is executing, cannot copy. Cause: The destination program is executing.
+Remedy: Stop the destination program. TPIF-210 The number of steps to transfer
+is Cause: The number of steps to transfer is Remedy: Confirm the input value.
+TPIF-211 Specify the copy range.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #4
+🆔 Document: doc-R-30iB
+🧩 Chunk: 536
+📊 Score similarité: 0.5868
+📏 Distance L2: 0.7040
+📝 Mots: 383
+🔤 Caractères: 2153
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+Remedy: (1) Set the currect port. (2) Check the device if it works fine.
+LANG-005 Program type is different Cause: Only able to process teach pendant
+programs. Remedy: Select a TPE program. LANG-006 Invalid or corrupted TP file
+Cause: A when loading . TP file, invalid data was found. This may occur if a .
+TP file has become corrupted or if some other type of file e. g., a . PE file,
+has been copied or renamed to a . TP file. Remedy: Generate (using SAVE, with
+$ASCII_SAVE = FALSE) and load a valid . TP file. (2) The device may be out of
+order. You might have to reteach the teach pendant program, before you save it
+as a . TP file. LANG-014 Program already exists Cause: The program that is being
+loaded already exists in the system. Remedy: Before you load the program, delete
+the program already in the system. 3–739 ERROR CODES MARRBERCD 04121 E REV N
+LANG-015 Can not write file Cause: Failure when writing data to the floppy.
+Remedy: Check the connection of the device. LANG-016 Can not read file Cause:
+Failure when reading data from the floppy. Remedy: Check the connection of the
+device. LANG-017 File format is incorrect Cause: The data you are trying to save
+to a file is either abnormal or broken, therefore the file cannot be loaded.
+Remedy: The file cannot be loaded with the data as it is. The data must be
+normal to load the file. LANG-018 Group mask value is incorrect Cause: When
+printing the program, there was an illegal position that did not match the group
+mask of the program. Remedy: Reteach the position data so that the group number
+matches the group mask of the program. LANG-050 %s contains %s, program file/
+names must match Cause: The file name and the program name are not the same.
+Their names must match. Remedy: Rename the file to be same as the program name.
+LANG-051 Wrong daughter program name Cause: The daughter program name is not
+matched with the parent program name. Remedy: Please verify the daughter program
+name. 3–740 MARRBERCD 04121 E REV N ERROR CODES LANG-052 Cannot load daughter
+program(%d) Cause: The loading of the daughter program failed. Remedy: Please
+check the contents of the specified file.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #5
+🆔 Document: doc-R-30iB
+🧩 Chunk: 432
+📊 Score similarité: 0.5841
+📏 Distance L2: 0.7120
+📝 Mots: 399
+🔤 Caractères: 2412
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+On the teach pendant, press and hold the SHIFT and RESET keys. While still
+pressing the SHIFT and RESET keys, turn on the robot. If 3–584 MARRBERCD 04121 E
+REV N ERROR CODES the error is not cleared, document the events that led to the
+error and call your FANUC America Corporation technical representative. INTP-003
+Invalid request Cause: Internal system error. Remedy: Perform a cold start: Turn
+off the robot. On the teach pendant, press and hold the SHIFT and RESET keys.
+While still pressing the SHIFT and RESET keys, turn on the robot. Remedy:
+Perform a cold start: Turn off the robot. INTP-004 Cannot ATTACH with TP enabled
+Cause: The ATTACH statement requires the teach pendant to be disabled. Remedy:
+Disable the teach pendant. INTP-005 Cannot release motion control Cause: Motion
+control cannot be released. Remedy: Abort the running or paused program.
+INTP-100 (%s^4, %d^5) Internal error (PXnn) Cause: Internal system error.
+Remedy: Perform a cold start: Turn off the robot. On the teach pendant, press
+and hold the SHIFT and RESET keys. While still pressing the SHIFT and RESET
+keys, turn on the robot. If the error is not cleared, document the events that
+led to the error and call your FANUC America Corporation technical
+representative. INTP-101 (%s^4, %d^5) Internal error (system) Cause: An internal
+system error has occur red. Remedy: Perform a cold start: 3–585 ERROR CODES
+MARRBERCD 04121 E REV N Turn off the robot. On the teach pendant, press and hold
+the SHIFT and RESET keys. While still pressing the SHIFT and RESET keys, turn on
+the robot. If the error is not cleared, document the events that led to the
+error and call your FANUC America Corporation technical representative. INTP-102
+(%s^4, %d^5) Code format is invalid Cause: Program data is corrupted. Remedy:
+For TPE programs, if possible, reload program from back-up device. If a back-up
+is not available, it may be necessary to re-create the particular routine. For
+KAREL programs, re-translate and re-load the program. INTP-103 (%s^4, %d^5)
+Program error Cause: An error occur red while the program was running. Remedy:
+Refer to the error cause code. Use MENU to display the Alarm Log screen.
+INTP-104 (%s^4, %d^5) Single step failed Cause: Single step cannot be executed
+Remedy: Refer to the error cause code. Use MENU to display the Alarm Log screen.
+INTP-105 (%s^4, %d^5) Run request failed Cause: Program cannot be started.
+--------------------------------------------------
+
+📈 ANALYSE DES SCORES SÉMANTIQUES:
+   🎯 Score max: 0.6341
+   📊 Score min: 0.5841
+   📈 Score moyen: 0.6045
+   📏 Distance L2 min: 0.5769
+   📏 Distance L2 max: 0.7120
+
+------------------------------------------------------------
+ REQUÊTE 2: Requête sémantique - Échec calibration robot
+------------------------------------------------------------
+🧠 Requête: "robot calibration failed teach pendant"
+📊 Top-K: 3
+✅ 3 résultat(s) trouvé(s)
+
+🧠 RÉSULTAT SÉMANTIQUE #1
+🆔 Document: doc-R-30iB
+🧩 Chunk: 432
+📊 Score similarité: 0.5651
+📏 Distance L2: 0.7695
+📝 Mots: 399
+🔤 Caractères: 2412
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+On the teach pendant, press and hold the SHIFT and RESET keys. While still
+pressing the SHIFT and RESET keys, turn on the robot. If 3–584 MARRBERCD 04121 E
+REV N ERROR CODES the error is not cleared, document the events that led to the
+error and call your FANUC America Corporation technical representative. INTP-003
+Invalid request Cause: Internal system error. Remedy: Perform a cold start: Turn
+off the robot. On the teach pendant, press and hold the SHIFT and RESET keys.
+While still pressing the SHIFT and RESET keys, turn on the robot. Remedy:
+Perform a cold start: Turn off the robot. INTP-004 Cannot ATTACH with TP enabled
+Cause: The ATTACH statement requires the teach pendant to be disabled. Remedy:
+Disable the teach pendant. INTP-005 Cannot release motion control Cause: Motion
+control cannot be released. Remedy: Abort the running or paused program.
+INTP-100 (%s^4, %d^5) Internal error (PXnn) Cause: Internal system error.
+Remedy: Perform a cold start: Turn off the robot. On the teach pendant, press
+and hold the SHIFT and RESET keys. While still pressing the SHIFT and RESET
+keys, turn on the robot. If the error is not cleared, document the events that
+led to the error and call your FANUC America Corporation technical
+representative. INTP-101 (%s^4, %d^5) Internal error (system) Cause: An internal
+system error has occur red. Remedy: Perform a cold start: 3–585 ERROR CODES
+MARRBERCD 04121 E REV N Turn off the robot. On the teach pendant, press and hold
+the SHIFT and RESET keys. While still pressing the SHIFT and RESET keys, turn on
+the robot. If the error is not cleared, document the events that led to the
+error and call your FANUC America Corporation technical representative. INTP-102
+(%s^4, %d^5) Code format is invalid Cause: Program data is corrupted. Remedy:
+For TPE programs, if possible, reload program from back-up device. If a back-up
+is not available, it may be necessary to re-create the particular routine. For
+KAREL programs, re-translate and re-load the program. INTP-103 (%s^4, %d^5)
+Program error Cause: An error occur red while the program was running. Remedy:
+Refer to the error cause code. Use MENU to display the Alarm Log screen.
+INTP-104 (%s^4, %d^5) Single step failed Cause: Single step cannot be executed
+Remedy: Refer to the error cause code. Use MENU to display the Alarm Log screen.
+INTP-105 (%s^4, %d^5) Run request failed Cause: Program cannot be started.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #2
+🆔 Document: doc-R-30iB
+🧩 Chunk: 157
+📊 Score similarité: 0.5573
+📏 Distance L2: 0.7944
+📝 Mots: 400
+🔤 Caractères: 2428
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+If any of the software version are not matched, a complete re-load with the
+correct software will be necessary. Confirm that no incompatible or mutually
+exclusive options have been loaded. Perform a full software reload. If the error
+is not cleared, document the events that led to the error and call your FANUC
+America Corporation technical representative. CPMO-038 Non Zero JBF Remainder(G:
+%d^2) Cause: Internal INTR error: A empty JBFset has non-zero remainder Remedy:
+Press RESET. If the error still exists, document the events that led to the
+error and call your FANUC America Corporation technical representative. Also
+make sure that the installation manual being used is for this version of
+software. On the teach pendant, press and hold the SHIFT and RESET keys. While
+still pressing the SHIFT and RESET keys, turn on the robot. If the error is not
+cleared, document the events that led to the error and call your FANUC America
+Corporation technical representative. 3–187 ERROR CODES MARRBERCD 04121 E REV N
+CPMO-040 GTF not empty (G: %d^2) Cause: An Internal INTR error has occur red.
+This class of error should not be encounter ed during normal operation Remedy:
+The system might have been corrupted. This might have been caused by any of a
+number of reasons including: Incorrect loading and setup loading incompatible
+options, mixing software version when adding options and other memory corruption
+problems. The following is a list of possible remedies: Perform a Cold start.
+Perform an Init start and set up the robot again Confirm that any options or
+additional software not on the original software distribution media is the same
+version number. If the main system software was sup plied on several disks or
+memory cards, make sure that you are using a matched set. Also make sure that
+the installation manual being used is for this version of software. If any of
+the software version are not matched, a complete re-load with the correct
+software will be necessary. Confirm that no incompatible or mutually exclusive
+options have been loaded. Perform a full software reload. If the error is not
+cleared, document the events that led to the error and call your FANUC America
+Corporation technical representative. CPMO-041 GTF no main filter (G: %d^2)
+Cause: An Internal INTR error has occur red. This class of error should not be
+encounter ed during normal operation. Remedy: The system might have been
+corrupted.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #3
+🆔 Document: doc-R-30iB
+🧩 Chunk: 8
+📊 Score similarité: 0.5561
+📏 Distance L2: 0.7982
+📝 Mots: 385
+🔤 Caractères: 2245
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+• Know whether or not you are using an intrinsically safe teach pendant if you
+are working in a hazardous environment. • Before teaching, visually inspect the
+robot and work envelope to make sure that no potentially hazardous conditions
+exist. The work envelope is the area defined by the maximum motion range of the
+robot. These include tooling attached to the wrist flange that extends this
+range. xiii Safety MARRBERCD 04121 E REV N Staying Safe While Teaching or
+Manually Operating the Robot Advise all personnel who must teach the robot or
+otherwise manually operate the robot to observe the following rules: • Never
+wear watches, rings, neckties, scarves, or loose clothing that could get caught
+in moving machinery. Immediately report unsafe working conditions to the
+supervisor or safety department. • FANUC America Corporation recommends that no
+one enter the work envelope of a robot that is on, except for robot teaching
+operations. However, if you must enter the work envelope, be sure all safeguards
+are in place, check the teach pendant DEADMAN switch for proper operation, and
+place the robot in teach mode. Take the teach pendant with you, turn it on, and
+be prepared to release the DEADMAN switch. Only the person with the teach
+pendant should be in the work envelope. Warning Never bypass, strap, or
+otherwise deactivate a safety device, such as a limit switch, for any
+operational convenience. Deactivating a safety device is known to have result ed
+in serious injury and death. • Know the path that can be used to escape from a
+moving robot; make sure the escape path is never blocked. • Isolate the robot
+from all remote control signals that can cause motion while data is being
+taught. • Test any program being run for the first time in the following manner:
+Warning Stay outside the robot work envelope whenever a program is being run.
+Failure to do so can result in injury. — Using a low motion speed, single step
+the program for at least one full cycle. — Using a low motion speed, test run
+the program continuously for at least one full cycle. — Using the programmed
+speed, test run the program continuously for at least one full cycle. • Make
+sure all personnel are outside the work envelope before running production.
+--------------------------------------------------
+
+📈 ANALYSE DES SCORES SÉMANTIQUES:
+   🎯 Score max: 0.5651
+   📊 Score min: 0.5561
+   📈 Score moyen: 0.5595
+   📏 Distance L2 min: 0.7695
+   📏 Distance L2 max: 0.7982
+
+------------------------------------------------------------
+ REQUÊTE 3: Requête générale - Dépannage FANUC
+------------------------------------------------------------
+🧠 Requête: "how to troubleshoot FANUC robot error"
+📊 Top-K: 3
+✅ 3 résultat(s) trouvé(s)
+
+🧠 RÉSULTAT SÉMANTIQUE #1
+🆔 Document: doc-R-30iB
+🧩 Chunk: 609
+📊 Score similarité: 0.6348
+📏 Distance L2: 0.5752
+📝 Mots: 382
+🔤 Caractères: 2294
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+If the error is not cleared, document the events that led to the error and call
+your FANUC America Corporation technical representative. 3–836 MARRBERCD 04121 E
+REV N ERROR CODES MOTN-066 Degenerate circle (G:%d^2) Cause: Degenerate circle
+Remedy: Reteach via and/or destination positions MOTN-067 Ata 2 error in circle
+(G:%d^2) Cause: Internal system error during circular plan ning Remedy: Perform
+a cold start: Turn off the robot. On the teach pendant, press and hold the SHIFT
+and RESET keys. While still pressing the SHIFT and RESET keys, turn on the
+robot. While still pressing the SHIFT and RESET keys, turn on the robot.
+MOTN-068 Invalid Prgoverride (G:%d^2) Cause: Prgoverride is not within 0 to 100
+Remedy: Set $prgoverride within 0 to 100 MOTN-069 Error in mocmnd (G:%d^2)
+Cause: Internal error: planner received invalid mocmnd Remedy: Perform a cold
+start: Turn off the robot. On the teach pendant, press and hold the SHIFT and
+RESET keys. While still pressing the SHIFT and RESET keys, turn on the robot. If
+the error is not cleared, document the events that led to the error and call
+your FANUC America Corporation technical representative. MOTN-070 Error in
+motype (G:%d^2) Cause: Internal error: planner received invalid motype Remedy:
+Perform a cold start: Turn off the robot. On the teach pendant, press and hold
+the SHIFT and RESET keys. While still pressing the SHIFT and RESET keys, turn on
+the robot. If the error is not cleared, document the events that led to the
+error and call your FANUC America Corporation technical representative. 3–837
+ERROR CODES MARRBERCD 04121 E REV N MOTN-071 Error in term type (G:%d^2) Cause:
+Internal error: planner received invalid term type Remedy: Perform a cold start:
+Turn off the robot. On the teach pendant, press and hold the SHIFT and RESET
+keys. While still pressing the SHIFT and RESET keys, turn on the robot. If the
+error is not cleared, document the events that led to the error and call your
+FANUC America Corporation technical representative. MOTN-072 Error in seg term
+type (G:%d^2) Cause: Internal error: planner received invalid seg term type
+Remedy: Perform a cold start: Turn off the robot. On the teach pendant, press
+and hold the SHIFT and RESET keys. While still pressing the SHIFT and RESET
+keys, turn on the robot.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #2
+🆔 Document: doc-R-30iB
+🧩 Chunk: 141
+📊 Score similarité: 0.6308
+📏 Distance L2: 0.5854
+📝 Mots: 391
+🔤 Caractères: 2338
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+If any of the software version are not matched, a complete re-load with the
+correct software will be necessary. Confirm that no incompatible or mutually
+exclusive option have been loaded. Perform a full software reload. If the error
+is not cleared, document the events that led to the error and call your FANUC
+America Corporation technical representative. CPMO-014 JBF NULL PTR (G: %d^2)
+Cause: An Internal INTR error has occur red. This class of error should not be
+encounter ed during normal operation. Remedy: The system might have been
+corrupted. Also make sure that the installation manual being used is for this
+version of software. The following is a list of possible remedies: Perform a
+Cold start. Perform an Init start and set up the robot again 3–173 ERROR CODES
+MARRBERCD 04121 E REV N Confirm that any options or additional software not on
+the original software distribution media is the same version number. If the main
+system software was sup plied on several disks or memory cards, make sure that
+you are using a matched set. Also make sure that the installation manual being
+used is for this version of software. If any of the software version are not
+matched, a complete re-load with the correct software will be necessary. Confirm
+that no incompatible or mutually exclusive option have been loaded. Perform a
+full software reload. If the error is not cleared, document the events that led
+to the error and call your FANUC America Corporation technical representative.
+CPMO-015 JBF Ts>itp (G: %d^2) Cause: An Internal INTR error has occur red. This
+class of error should not be encounter ed during normal operation. Remedy: The
+system might have been corrupted. This might have been caused by any of a number
+of reasons including: Incorrect loading and setup loading incompatible options,
+mixing software version when adding options and other memory corruption
+problems. The following is a list of possible remedies: Perform a Cold start.
+Perform an Init start and set up the robot again Confirm that any options or
+additional software not on the original software distribution media is the same
+version number. If the main system software was sup plied on several disks or
+memory cards, make sure that you are using a matched set. Also make sure that
+the installation manual being used is for this version of software.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #3
+🆔 Document: doc-R-30iB
+🧩 Chunk: 576
+📊 Score similarité: 0.6215
+📏 Distance L2: 0.6089
+📝 Mots: 392
+🔤 Caractères: 2367
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+Also make sure that the installation manual being used is for this version of
+software. If any of the software version are not matched, a complete re-load
+with the correct software will be necessary. Confirm that no incompatible or
+mutually exclusive option have been loaded. Full software reload. If the error
+is not cleared, document the events that led to the error and call your FANUC
+America Corporation technical representative. MASI-028 Cycle Power: Z stk (G:
+%d^2) Cause: Internal error. This class of error should not be encounter ed
+during normal operation Remedy: The system may have been corrupted. If the main
+system software was sup plied on several disks or memory cards, make sure that
+you are using a matched set. The following is a list of possible remedies:
+Perform a cold start. Perform an init start and setup the robot again Confirm
+that any options or additional software not on the original software
+distribution media is the same version number. If the main system software was
+sup plied on several disks or memory cards, make sure that you are using a
+matched set. Also make sure that the installation manual being used is for this
+version of software. If any of the software version are not matched, a complete
+re-load with the correct software will be necessary. Confirm that no
+incompatible or mutually exclusive option have been loaded. Full software
+reload. If the error is not cleared, document the events that led to the error
+and call your FANUC America Corporation technical representative. 3.12.4 MCTL
+Alarm Code MCTL-001 TP is enabled Cause: Teach pendant is enabled, therefore
+motion control was not granted. Remedy: Disable the teach pendant, and try the
+operation again. MCTL-002 TP is disabled Cause: The teach pendant is disabled,
+therefore motion control was not granted. Remedy: Enable the teach pendant, and
+try the operation again. 3–785 ERROR CODES MARRBERCD 04121 E REV N MCTL-003
+system is in error status Cause: The system is in error status, therefore motion
+control was not granted. Remedy: Clear the error by pressing RESET, and try the
+operation again. MCTL-004 motion is in progress Cause: Motion control was not
+granted because otion is still in progress. Remedy: Wait until the robot comes
+to a complete stop. MCTL-005 not in control of motion Cause: Motion control was
+not granted because brakes were engaged.
+--------------------------------------------------
+
+📈 ANALYSE DES SCORES SÉMANTIQUES:
+   🎯 Score max: 0.6348
+   📊 Score min: 0.6215
+   📈 Score moyen: 0.6290
+   📏 Distance L2 min: 0.5752
+   📏 Distance L2 max: 0.6089
+
+------------------------------------------------------------
+ REQUÊTE 4: Requête sémantique - Problème pendant d'apprentissage
+------------------------------------------------------------
+🧠 Requête: "teaching pendant operation problem"
+📊 Top-K: 3
+✅ 3 résultat(s) trouvé(s)
+
+🧠 RÉSULTAT SÉMANTIQUE #1
+🆔 Document: doc-R-30iB
+🧩 Chunk: 1187
+📊 Score similarité: 0.5221
+📏 Distance L2: 0.9153
+📝 Mots: 400
+🔤 Caractères: 2283
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+Check the payload settings by using the teach pendant: Press MENUS. Press
+SYSTEM. Press F 1, [TYPE]. Select Motion. SPOT-048 No Coll. Guard Reg. Defined
+Cause: No register has been defined for use with the Collision Guard Update
+macro. Remedy: Use the Collision Guard SETUP screen to define a register for use
+with the macro. SPOT-049 Coll. Guard Reg. Data Error Cause: The data con tai ned
+in the Collision Guard macro register is not an integer or is not in the range
+of 1 to 200. Remedy: Enter the correct data into the Collision Guard macro
+register. Verify that the payload settings are accurate and do not exceed the
+capacity of the mechanical unit. Remedy: In the teach pendant program, check the
+equalization pressure spot welding instruction EP= value. Note: The small est
+valve pressure allowed is For digital weld con troll ers, the largest pressure
+number allowed depends on the width of the Equalization Pressure group output.
+If this GOUT is 4 I/O points wide, then the maximum pressure is If the GOUT is 5
+I/O points wide, then the maximum pressure is For serial weld con troll ers, the
+maximum pressure is Rep rog ram- the EP= value in the teach pendant program.
+SPOT-051 Undefined Pressure (EP=*) %s Cause: The equalization pressure spot
+welding instruction EP=* was encounter ed in a teach pendant program, but no
+previous pressure value had been assigned. Note: EP=* indic ates that the
+equalization pressure remains unchanged from the last value. 3–1524 MARRBERCD
+04121 E REV N ERROR CODES Remedy: Be sure to include a direct equalization
+pressure value instead of using *. SPOT-052 Suspect Weld Cause: A faulty stud
+weld has occur red. A pressure value has been used. Remedy: Check the stud that
+gene rated the error and remove it if necessary. Select the appropriate recovery
+type by pressing F 4, [CHOICE]. SPOT-053 Feeder Low - Gun 1 Cause: The stud
+feeder for gun 1 is low on studs. Remedy: Add more studs to the feeder for gun 1
+at an appropriate time. SPOT-054 Feeder Low - Gun 2 Cause: The stud feeder for
+gun 2 is low on studs. Remedy: Add more studs to the feeder for gun 2 at an
+appropriate time. SPOT-055 Stud Controller Fault 1 Cause: A weld controller
+fault has occured on gun Remedy: Check the stud welding controller for the
+reason for this fault.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #2
+🆔 Document: doc-R-30iB
+🧩 Chunk: 1252
+📊 Score similarité: 0.5213
+📏 Distance L2: 0.9181
+📝 Mots: 385
+🔤 Caractères: 2216
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+Alternatively, the controller door is open. There is also a failure in the
+hardware. Remedy: After setting the teach pendant enable disable/ switch to on,
+close the controller door, and press the reset key. If this alarm cannot be
+reset, refer to the Controller Maintenance Manual for more information. (Paint)
+If you should be in Auto mode, look at the Mode selector inputs. If you should
+be in Teach mode, verify the pendant is enabled then replace the teach pendant.
+SRVO-234 Deadman switch released Cause: The deadman switch on the teach pendant
+was released. Remedy: None. SRVO-233 TP OFF in T 1,T 2/Door open Cause: The mode
+switch is set in the T 1 or T 2 position, and the teach pendant is disabled.
+Remedy: Press the e-stop button on the teach pendant or the operator panel
+again. If occur ring SRVO-236 'Chain failure is re paired'. Release e-stop
+button and Press RESET. If this alarm cannot be reset, refer to the Controller
+Maintenance Manual for more information. After these measures, the release
+operation of chain abnormal state is necessary. a. The emergency stop button on
+the teach pendant or operator panel is pressed once, and released. b. F 4 'RES_1
+CH' is pressed on the Alarm Active screen. c. The reset button is pressed.
+3–1606 MARRBERCD 04121 E REV N ERROR CODES SRVO-236 Chain failure is re paired
+Cause: A chain failure was removed. Remedy: When the system checked for the
+chain failure again, the chain failure had been removed. Press RESET. SRVO-237
+Cannot reset chain failure Cause: An attempt to reset the chain failure failed.
+Remedy: Refer to the remedy of SRVO-230. SRVO-238 Chain 1 (SVON) abnormal Cause:
+A single chain 1 (+24 V) failure occur red when the SVON (Servo ON/OFF switch)
+input was assert ed. Remedy: Repair the circuit of chain 1 (+24 V) on the SVON
+hardware. Set CHAIN FAILURE detection to TRUE on the SYSTEM CONFIG/ screen.
+Press RESET on the teach pendant. SRVO-239 Chain 2 (SVON) abnormal Cause: A
+single chain 2 (0 V) failure occur red when a SVON (Servo ON/OFF switch) input
+was assert ed. Remedy: Repair the circuit of the chain 2 (0 V) on SVON the
+hardware. Set CHAIN FAILURE detection to TRUE on the SYSTEM CONFIG/ screen.
+Press RESET on the teach pendant.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #3
+🆔 Document: doc-R-30iB
+🧩 Chunk: 1451
+📊 Score similarité: 0.5187
+📏 Distance L2: 0.9278
+📝 Mots: 400
+🔤 Caractères: 2446
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+Typically, this is a force link call from a $PWR_NORMAL program. TPIF-172 Only
+available from pendant Cause: The operation you selected is only available from
+the teach pendant. Remedy: Perform this operation from the attached teach
+pendant. TPIF-173 The pos. can't be handled part repr. Cause: The position data
+is wrong. Refer to the cause code for details. Remedy: Change the position data
+correctly, and press F 5 DONE. TPIF-174 New pos. can't be handled part repr.
+Cause: The new position data is wrong. Refer to the cause code for details
+Remedy: Type the correct position data. Remedy: Wait until the i Pendant is
+initialized to do this operation. Remedy: None. 3–1884 MARRBERCD 04121 E REV N
+ERROR CODES TPIF-176 Illegal state(D 1:%d, D 2:%d) Cause: The situation
+unexpected by the software occured. The index value indic ates the reason.
+Remedy: Turn off controller power and turn it on again. If the problem persists,
+document the events that led to the error and contact your FANUC technical
+representative. TPIF-201 Next line exist. Cause: You cannot record motion line
+using the record button if the next line exists. Remedy: Move the cursor to the
+end of the program, and press the record button again. TPIF-203 Format does not
+match to unified specification Cause: Record status TUI( default motion) is not
+written in TUI motion format. Remedy: Select TUIDFMTN. to and teach J P[ ]
+R[101]% FINE DB 0.0 mm P-SPS as line P-SPS contains no line TPIF-204 There is
+not specified source program number. Cause: The input value is not correct.
+Remedy: Confirm the input value. TPIF-205 There is not specified source step
+number. Cause: The input value is not correct. Remedy: Confirm the input value.
+TPIF-206 The number of steps of source program doesn't suffice. Cause: The input
+value is not correct. Remedy: Confirm the input value. 3–1885 ERROR CODES
+MARRBERCD 04121 E REV N TPIF-207 There is not specified destination program
+number. Cause: The input value is not correct. Remedy: Confirm the input value.
+TPIF-208 There is not specified destination step number. Cause: The input value
+is not correct. Remedy: Confirm the input value. TPIF-209 Because destination
+program is executing, cannot copy. Cause: The destination program is executing.
+Remedy: Stop the destination program. TPIF-210 The number of steps to transfer
+is Cause: The number of steps to transfer is Remedy: Confirm the input value.
+TPIF-211 Specify the copy range.
+--------------------------------------------------
+
+📈 ANALYSE DES SCORES SÉMANTIQUES:
+   🎯 Score max: 0.5221
+   📊 Score min: 0.5187
+   📈 Score moyen: 0.5207
+   📏 Distance L2 min: 0.9153
+   📏 Distance L2 max: 0.9278
+
+------------------------------------------------------------
+ REQUÊTE 5: Requête conceptuelle - Diagnostic code erreur
+------------------------------------------------------------
+🧠 Requête: "automation error code diagnostic"
+📊 Top-K: 3
+✅ 3 résultat(s) trouvé(s)
+
+🧠 RÉSULTAT SÉMANTIQUE #1
+🆔 Document: doc-R-30iB
+🧩 Chunk: 102
+📊 Score similarité: 0.5240
+📏 Distance L2: 0.9083
+📝 Mots: 380
+🔤 Caractères: 2560
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+Remedy: Fix the syntax error. The cause code may have additional information.
+ASBN-157 Invalid distance schedule Cause: Tip distance schedule is invalid.
+Remedy: Fix the syntax error. The cause code may have additional information.
+ASBN-158 Expect ing 'SEL' Cause: SEL’ is expect ed. Remedy: Fix the syntax
+error. The cause code may have additional information. 3–111 ERROR CODES
+MARRBERCD 04121 E REV N ASBN-159 Expect ing ’t’ Cause: ‘t’ is expect ed. Remedy:
+Fix the syntax error. The cause code may have additional information. ASBN-163
+Start signal error(E:%d) Cause: Detect start signal abnormal. ASBN-156 Expect
+ing 'SD' Cause: ‘SD’ is expect ed. ASBN-164 Power source error(E:%d) Cause:
+Detect 3-phase power source abnormal. Remedy: Check 3-phase power source.
+ASBN-165 EQ is detached Ed(:%) Cause: Robo Weld is detached. Remedy: Confirm
+port setup. ASBN-166 Comm. stopped in weld(E:%d) Cause: Communication with Robo
+Weld power source stopped in welding. Remedy: Confirm another error message and
+port, cable setup. ASBN-167 I/O asginment overlapd Ed(%)(:%) Cause: I/O space
+for Robo Weld is already in use. Remedy: Confirm another I/O device and
+$IO_START in $RBWLD. 3–112 MARRBERCD 04121 E REV N ERROR CODES ASBN-168 I/O
+error(%d)(%d, E:%d) Cause: I/O initialization error. Remedy: Confirm another I/O
+device and $IO_START in $RBWLD. ASBN-169 Invalid wire op. (E:%d) Cause: Detect
+invalid wire FWD/BWD operation. Remedy: Confirm wire control sequence. ASBN-172
+Warning, Rcv(0 x%X)(E:%d) Cause: Receive invalid command from power source.
+Remedy: Confirm noise environment, cable setting. ASBN-173 Warning, Retry(0
+x%X)(E:%d) Cause: Retry to send the command to power source. Remedy: Confirm
+noise environment, cable setting. ASBN-174 Warning, NAK for(0 x%X)(E:%d) Cause:
+Receive NAK from power source. Remedy: Confirm noise environment, cable setting.
+ASBN-175 Signal change is ignored Ed(:%) Cause: Communication with power source
+is stopped. Remedy: Confirm welding setup, cable connection, then reset. 3–113
+ERROR CODES MARRBERCD 04121 E REV N ASBN-176 No sysvar $RBWLD for E:%d Cause:
+Sysvar $RBWLD is not setup for new EQ number. Remedy: Confirm $RBWLD and
+$RBWLD_CFG setup. ASBN-177 Robo Weld(E:%d) reset complete Cause: Robo Weld reset
+sequence is complete. Remedy: Arc welding is now available. ASBN-179 Power
+supply com alarm(E:%d) Cause: This alarm is occur red when communication between
+the welding equipment control board and the robot controller stops. Remedy: If
+this alarm occur red with ARC-143, please perform the remedy for ARC-143.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #2
+🆔 Document: doc-R-30iB
+🧩 Chunk: 95
+📊 Score similarité: 0.5234
+📏 Distance L2: 0.9105
+📝 Mots: 386
+🔤 Caractères: 2391
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+Remedy: Fix the syntax error. The cause code may have additional information.
+ASBN-039 Invalid combination of AND/OR Cause: AND/OR operators cannot be mixed
+within a single instruction. Remedy: Fix the syntax error. The cause code may
+have additional information. ASBN-040 Invalid operator combination Cause: + and
+- operators cannot be mixed with * and / operators. Remedy: Fix the syntax
+error. The cause code may have additional information. ASBN-041 Too many AND/OR
+operator Cause: A maximum of 4 AND/OR operators can be used per line. Remedy:
+Fix the syntax error. The cause code may have additional information. ASBN-038
+Invalid group number Cause: An invalid motion group has been specified. Remedy:
+Fix the syntax error. The cause code may have additional information. ASBN-046
+Expect ing a unit Cause: A unit declaration is required. Remedy: Fix the syntax
+error. The cause code may have additional information. ASBN-047 String argument
+too long Cause: The string specified is too long. Remedy: Fix the syntax error.
+The cause code may have additional information. ASBN-048 Auto AI/O setup is
+unsupported Cause: Auto AI/O setup for the mounted I/O module is not sup ported.
+So parameters are not set automatically. Remedy: Verify mounted I/O module and
+set system variables of $AWEPRR[] in system variable screen manually if need.
+ASBN-049 Process %d switch to %d failed Cause: Arc Tool failed to switch weld
+processes. Remedy: The weld power supply may be OFF, unconnected, or data in the
+second process may be incorrect. ASBN-050 Invalid name in /PROG section Cause:
+The program name does not match the file name or has invalid char act ers.
+Remedy: Fix the syntax error. 3–100 MARRBERCD 04121 E REV N ERROR CODES ASBN-051
+Invalid subtype /PROG section Cause: The TP subtype specified is not valid.
+Remedy: Fix the syntax error. ASBN-052 Bad %s %s Prc %d Cause: The indicated
+parameter is out of range. Remedy: Enter a number within range. ASBN-053 No ramp
+at process switch (%s^4,%d^5) Cause: Ramping is not allowed when switching weld
+processes. Remedy: Complete the process switch first, then ramp with another arc
+start instruction. ASBN-054 No motion while arc welding Cause: Motion has
+stopped longer than the time specified in weld schedulle and weld setup while
+welding. Remedy: If no motion is needed during welding, increase the above time
+in the system variable screen.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #3
+🆔 Document: doc-R-30iB
+🧩 Chunk: 1481
+📊 Score similarité: 0.5197
+📏 Distance L2: 0.9241
+📝 Mots: 376
+🔤 Caractères: 2332
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+Remedy: Correct the XML content, and retry the operation. XMLF-018 User func %s
+Cause: The i Pendant detect ed a syntax error in the XML content. Remedy:
+Correct the XML content, and retry the operation. XMLF-019 Too many attributes
+Cause: There are too many ATTRIBUTE VALUE/ pairs with the XML tag. 3–1930
+MARRBERCD 04121 E REV N ERROR CODES Remedy: Reduce the number of ATTRIBUTE
+VALUE/ pairs in the XML content and retry the operation. 3–1931 MARRBERCD 04121
+E REV N Glossary Glossary A abort Abnormal termination of a computer program
+caused by hardware or software malfunction or operator cancellation. XMLF-017
+Attr %s %s Cause: The i Pendant detect ed a problem with an ATTRIBUTE / VALUE
+pair in the XML content. This system is calibrated when it is turned on. A/D
+value An analog to digital value-. Converts a multilevel analog electrical
+system pattern into a digital bit. AI Analog input. AO Analog output. alarm The
+difference in value between actual response and desired response in the
+performance of a control led machine, system or process. Alarm Error=. algorithm
+A fixed step-by-step procedure for accomplish ing a given result. alp han ume
+ric Data that are both alphabetical and numeric. 3–1932 Glossary MARRBERCD 04121
+E REV N AMPS Amperage amount. analog The representation of numerical quan tities
+by measurable quan tities such as length, voltage or resistance. Also refers to
+analog type I/O blocks and distinguishes them from discrete I/O blocks.
+Numerical data that can vary continuously, for example, voltage levels that can
+vary within the range of -10 to +10 volts. AND An operation that places two
+contacts or groups of contacts in series. All contacts in series control the
+resulting status and also mathematical operator. ANSI American National Standard
+Institute, the U. S. government organization with responsibility for the
+development and announcement of technical data standards. APC See absolute pulse
+code system. APC motor See servomotor. application program The set of
+instructions that defines the specific intended tasks of robots and robot
+systems to make them reprogrammable and multifunctional. You can initiate and
+change these programs. arm A robot component con sis ting of an interconnect ing
+set of links and powered joints that move and support the wrist socket and end
+effector.
+--------------------------------------------------
+
+📈 ANALYSE DES SCORES SÉMANTIQUES:
+   🎯 Score max: 0.5240
+   📊 Score min: 0.5197
+   📈 Score moyen: 0.5224
+   📏 Distance L2 min: 0.9083
+   📏 Distance L2 max: 0.9241
+
+------------------------------------------------------------
+ REQUÊTE 6: Requête sémantique - Solution dysfonctionnement robot
+------------------------------------------------------------
+🧠 Requête: "industrial robot malfunction solution"
+📊 Top-K: 3
+✅ 3 résultat(s) trouvé(s)
+
+🧠 RÉSULTAT SÉMANTIQUE #1
+🆔 Document: doc-R-30iB
+🧩 Chunk: 521
+📊 Score similarité: 0.5159
+📏 Distance L2: 0.9384
+📝 Mots: 383
+🔤 Caractères: 2119
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+Make sure you include: Program name, line number, robot's location in the work
+cell, any cell I/O or other communication activity, and exactly what the robot
+was doing right before the fault occur red. This fault is usually fixed by doing
+a COLD start. If that does not work, contact your supervisor or call FANUC
+America Corporation for assistance. ISD-127 Output Power OK not ON(ISD%d) Cause:
+The Output Power OK input signal is not ON. Remedy: Reset the cell or trouble
+shoot why the Output Power OK input signal is not ON. Write down exactly what
+your robot was doing at the time of the failure. Remedy: Verify that the Output
+Power OK input signal is assigned to a valid port on the ISD I/O INPUT menu.
+Cycle power after assign ing. ISD-129 Air Supply Press OK not ON (ISD%d) Cause:
+The Air Supply Press OK input signal is not ON. Remedy: Reset the cell or
+trouble shoot why the Air Supply Press OK input signal is not ON. ISD-130 Air
+Supply Press OK I/O error (ISD%d) Cause: The Air Supply Press OK input signal is
+assigned but the port is invalid. Remedy: Verify that the Air Supply Press OK
+input signal is assigned to a valid port on the ISD I/O INPUT menu. Cycle power
+after assign ing. ISD-131 MCSD internal error %s Cause: This error is caused
+when ISD system encounters a problem that is unable to solve internally. Remedy:
+Write down the exact error number and message shown. Write down exactly what
+your robot was doing at the time of the failure. Make sure you include: Program
+name, line number, robot's location in the work cell, any cell I/O or other
+communciation activity, and exactly what the robot was doing right before the
+fault occured. This fault is usually fixed by doing a COLD start. If that does
+not work, contact your supervisor or call FANUC Robotics for assistance. ISD-132
+MCSD lifetime wrn time > flt (ISD%d) Cause: 'Wrn time left Max' has been set to
+a value greater than 'Flt time left Max' in the Dispenser setup menu Remedy:
+This is only a warning. To prevent this alarm, please set the 'Flt time left
+Max' to a value greater than 'Wrn time left Max' in the Dispenser setup menu.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #2
+🆔 Document: doc-R-30iB
+🧩 Chunk: 874
+📊 Score similarité: 0.5149
+📏 Distance L2: 0.9420
+📝 Mots: 391
+🔤 Caractères: 2172
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+Remedy: PLC must init robot with a valid tutone option. PNT 2-053 %s Invalid
+repair received Cause: An invalid repair option was received from the PLC.
+Remedy: PLC must init robot with a valid repair option. PNT 2-054 %s Invalid
+color received Cause: An invalid color number was received from the PLC. Remedy:
+PLC must init robot with a valid color number. 3–1161 ERROR CODES MARRBERCD
+04121 E REV N PNT 2-055 %s Job is not found Cause: Production run program is not
+loaded Remedy: Program must be loaded before attempt ing to run it in
+production. PNT 2-052 %s Invalid tutone received Cause: An invalid tutone option
+was received from the PLC. PNT 2-057 Job cannot restart, no detect! Cause: The
+robot received a restart job from the cell controller without a valid part
+detect! Remedy: The cell controller cannot restart a new job program, a restart
+is only valid for a previous job that could not be completed. PNT 2-058 %s Robot
+is bypass ed Cause: The robot not bypass ed input is OFF. Remedy: Turn on the
+robot not bypass ed input. PNT 2-059 %s SHELL failed to run SUB SHELL Cause: The
+subtask failed to run. Remedy: Cold start the controller. PNT 2-060 %s E-STAT
+unit faulted Cause: Detect ed a E-STAT unit fault. Remedy: Clear E-STAT unit
+fault. 3–1162 MARRBERCD 04121 E REV N ERROR CODES PNT 2-061 %s Automatic CLNOUT
+on prod entry Cause: An automatic move from the cleanin position on production
+entry is enabled. Remedy: None required. PNT 2-062 %s Cannot create presets
+Cause: When a job is created, the presets for the job are also created. In this
+case, the presets for the job could not be created. Remedy: Check that the job
+name is of the form JOBXXXX, where XXXX is a number between 1 and 1024. PNT
+2-063 %s Cannot read presets data file Cause: The preset data for the current
+job could not be found. Remedy: Check for the existence of a file called
+PAPSXXXX, where XXXX is the job number. This file is created when the job is
+created. This error might occur if the job was incorrectly named or the file was
+deleted. PNT 2-064 %s not calibrated Cause: The calibration status for each
+control parameter must be complete before it can be used in a program.
+--------------------------------------------------
+
+🧠 RÉSULTAT SÉMANTIQUE #3
+🆔 Document: doc-R-30iB
+🧩 Chunk: 1117
+📊 Score similarité: 0.5133
+📏 Distance L2: 0.9480
+📝 Mots: 382
+🔤 Caractères: 2224
+📐 Norme embedding: 1.000
+📂 Source: doc-R-30iB_chunks.json
+📖 TEXTE:
+--------------------------------------------------
+Make sure you include: Program name, line number, robot's location in the work
+cell, any cell I/O or other communication activity, and exactly what the robot
+was doing right before the fault occur red. This fault is usually fixed by doing
+a COLD start. If that does not work, contact your supervisor or call the FANUC
+America Corporation Hot Line. SEAL-001 %s Cause: This error is caused when
+Dispense tool encounters a problem it is unable to solve internally. This fault
+is almost always caused by style paths which do things which were not
+anticipated when this software was written. Write down exactly what your robot
+was doing at the time of the failure. Your robot's CPU has failed Remedy: Write
+down the exact error number and message shown. Write down exactly what your
+robot was doing at the time of the failure. Make sure you include: Program name,
+line number, robot's location in the work cell, any cell I/O or other
+communciation activity, and exactly what the robot was doing right before the
+fault occured. This fault is usually fixed by doing a COLD start. If that does
+not work, contact your supervisor or call the FANUC America Corporation Hot
+Line. 3–1439 ERROR CODES MARRBERCD 04121 E REV N SEAL-002 Flow rate update
+failed Cause: This error is caused when Dispense tool encounters a problem it is
+unable to solve internally. This fault is almost always caused by style paths
+which do things which were not anticipated when this software was written. The
+reasons for this could be: The sealing path is too fast. The sealing
+instructions (SS and SE) are too close together. The delay and timing values
+specified in your sealing schedules are too large or do not make sense. Your
+robot's CPU has failed. Remedy: Write down the exact error number and message
+shown. Write down exactly what your robot was doing at the time of the failure.
+Make sure you include: Program name, line number, robot's location in the work
+cell, any cell I/O or other communciation activity, and exactly what the robot
+was doing right before the fault occured. This fault is usually fixed by per
+forming a Cold start. If that does not work, contact your supervisor or call
+your FANUC America Corporation technical representative.
+--------------------------------------------------
+
+📈 ANALYSE DES SCORES SÉMANTIQUES:
+   🎯 Score max: 0.5159
+   📊 Score min: 0.5133
+   📈 Score moyen: 0.5147
+   📏 Distance L2 min: 0.9384
+   📏 Distance L2 max: 0.9480
+
+============================================================
+ COMPARAISON SÉMANTIQUE VS CONCEPTUELLE
+============================================================
+
+------------------------------------------------------------
+ TEST: Concept: Robot en panne
+------------------------------------------------------------
+🧠 Requête principale: "robot malfunctioning"
+✅ 2 résultats pour la requête principale
+   1. Score: 0.5562 | If the main system software was sup plied on several disks or memory cards, make sure that you are u...
+   2. Score: 0.5534 | If the main system software was sup plied on several disks or memory cards, make sure that you are u...
+
+🔄 Concept similaire: "machine broken"
+   Score: 0.4801 | Make sure you include: Program name, line number, robot's location in the work cell, any cell I/O or...
+   📊 Différence de score: 0.0762
+
+🔄 Concept similaire: "automation failure"
+   Score: 0.5304 | Remedy: The PLC must initialize the robot with a valid job prefix. PNT 1-021 System is in error stat...
+   📊 Différence de score: 0.0258
+
+🔄 Concept similaire: "equipment error"
+   Score: 0.5003 | This class of error should not be encounter ed during normal operation Remedy: The system may have b...
+   📊 Différence de score: 0.0559
+
+------------------------------------------------------------
+ TEST: Concept: Procédure de calibration
+------------------------------------------------------------
+🧠 Requête principale: "calibration procedure"
+✅ 2 résultats pour la requête principale
+   1. Score: 0.4800 | Remedy: Re-teach a measurement area. The minimum allowable laser measurement area is 8 pixels in bot...
+   2. Score: 0.4795 | Remedy: Use a UFrame with WPR values where all are set to zero. ACAL-092 Position close to joint lim...
+
+🔄 Concept similaire: "adjustment process"
+   Score: 0.4297 | ! Use 2 step TWD Cause: 1 step per formed with new tip flag. Do not perform 1 step with new tip falg...
+   📊 Différence de score: 0.0503
+
+🔄 Concept similaire: "setup method"
+   Score: 0.4289 | Remedy: The current number of equipment for which the system is con figured is displayed in the erro...
+   📊 Différence de score: 0.0511
+
+🔄 Concept similaire: "configuration steps"
+   Score: 0.4353 | Remedy: Down load configuration to PROFINET board if I/O Controller function is used. PRIO-671 PNIO(...
+   📊 Différence de score: 0.0447
+
+============================================================
+ TEST DES CAS LIMITES SÉMANTIQUES
+============================================================
+
+🧪 Cas limite 1: ""
+   📊 Résultats: 0
+
+🧪 Cas limite 2: "   "
+   📊 Résultats: 0
+
+🧪 Cas limite 3: "qwertyuiopasdfgh"
+   📊 Résultats: 2
+   🎯 Meilleur score: 0.4033
+   📏 Distance: 1.4795
+
+🧪 Cas limite 4: "a"
+   📊 Résultats: 2
+   🎯 Meilleur score: 0.3743
+   📏 Distance: 1.6713
+
+🧪 Cas limite 5: "the and or"
+   📊 Résultats: 2
+   🎯 Meilleur score: 0.3689
+   📏 Distance: 1.7110
+
+🧪 Cas limite 6: "🤖 ⚙️ 🔧"
+   📊 Résultats: 2
+   🎯 Meilleur score: 0.3598
+   📏 Distance: 1.7793
+
+🧪 Cas limite 7: "FANUC FANUC FANUC FANUC FANUC FANUC FANUC FANUC FANUC FANUC FANUC FANUC FANUC FANUC FANUC FANUC FANUC FANUC FANUC FANUC "
+   📊 Résultats: 2
+   🎯 Meilleur score: 0.4427
+   📏 Distance: 1.2590
+
+============================================================
+ TEST DE PERFORMANCE SÉMANTIQUE
+============================================================
+🏃 Test de 10 recherches sémantiques avec: "FANUC error ACAL-006 TPE operation"
+⏱️ Temps total: 0.041s
+⚡ Temps moyen par recherche: 0.004s
+📊 5 résultats par recherche
+🚀 Recherches/seconde: 243.5
+✅ Performance excellente (<100ms)
+
+============================================================
+ ✅ TESTS SÉMANTIQUES TERMINÉS AVEC SUCCÈS
+============================================================
+🎉 Le FAISSRetriever fonctionne correctement!
+🧠 La recherche sémantique capture les concepts et le sens!

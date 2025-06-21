@@ -1,0 +1,337 @@
+
+============================================================
+ 🎯 TEST DU SYSTÈME DE RE-RANKING CROSSENCODER 🎯
+============================================================
+
+------------------------------------------------------------
+ TEST: DISPONIBILITÉ
+------------------------------------------------------------
+
+============================================================
+ TEST DE DISPONIBILITÉ
+============================================================
+✅ Module CrossEncoderReranker disponible
+✅ Disponibilité: RÉUSSI
+
+------------------------------------------------------------
+ TEST: INITIALISATION
+------------------------------------------------------------
+
+============================================================
+ TEST D'INITIALISATION
+============================================================
+🔄 Test initialisation modèle par défaut...
+🔄 Chargement CrossEncoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+🎯 Device cible: cpu
+✅ CrossEncoder chargé avec succès sur cpu
+✅ Initialisation réussie (2.50s)
+📊 Infos modèle:
+   model_name: cross-encoder/ms-marco-MiniLM-L-6-v2
+   device: cpu
+   max_length: 512
+   model_type: CrossEncoder
+   framework: sentence-transformers
+✅ Initialisation: RÉUSSI
+
+------------------------------------------------------------
+ TEST: MODÈLE CUSTOM
+------------------------------------------------------------
+
+============================================================
+ TEST MODÈLE CUSTOM
+============================================================
+🔄 Test avec modèle léger...
+🔄 Chargement CrossEncoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+🎯 Device cible: cpu
+✅ CrossEncoder chargé avec succès sur cpu
+✅ Modèle cross-encoder/ms-marco-MiniLM-L-6-v2 chargé (1.13s)
+✅ Modèle custom: RÉUSSI
+
+------------------------------------------------------------
+ TEST: RE-RANKING BASIQUE
+------------------------------------------------------------
+
+============================================================
+ TEST RE-RANKING BASIQUE
+============================================================
+🔄 Chargement CrossEncoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+🎯 Device cible: cpu
+✅ CrossEncoder chargé avec succès sur cpu
+✅ Reranker initialisé
+🔍 Requête: "ACAL-006 error on FANUC robot teach pendant"
+📊 Candidats: 5
+
+📋 AVANT RE-RANKING (tri par score fusion):
+   1. Score: 0.850 | fanuc_manual|error_001
+      ACAL-006 TPE operation error occurs when the teach pendant encounters a communic...
+   2. Score: 0.750 | fanuc_manual|error_002
+      Robot calibration procedures must be followed exactly. Improper calibration can ...
+   3. Score: 0.700 | technical_guide|troubleshoot_001
+      When troubleshooting FANUC robots, first check the error code display on the tea...
+   4. Score: 0.450 | safety_manual|safety_001
+      Safety procedures require proper shutdown before maintenance. Always disconnect ...
+   5. Score: 0.350 | installation_guide|install_001
+      Installation of robotic systems requires careful planning and adherence to manuf...
+
+🎯 Re-ranking avec CrossEncoder...
+🎯 Re-ranking de 5 candidats avec CrossEncoder
+📊 Scoring 5 paires query-document...
+✅ Re-ranking terminé
+🏆 Top-1 score: 7.4238
+🥈 Top-2 score: 4.7356
+✅ Re-ranking terminé (0.14s)
+
+🏆 APRÈS RE-RANKING (tri par CrossEncoder):
+   1. CrossEncoder: 7.424 | Fusion: 0.850 | Rang orig: #1
+      fanuc_manual|error_001
+      ACAL-006 TPE operation error occurs when the teach pendant encounters a communic...
+   2. CrossEncoder: 4.736 | Fusion: 0.700 | Rang orig: #3
+      technical_guide|troubleshoot_001
+      When troubleshooting FANUC robots, first check the error code display on the tea...
+   3. CrossEncoder: -9.411 | Fusion: 0.750 | Rang orig: #2
+      fanuc_manual|error_002
+      Robot calibration procedures must be followed exactly. Improper calibration can ...
+   4. CrossEncoder: -11.145 | Fusion: 0.350 | Rang orig: #5
+      installation_guide|install_001
+      Installation of robotic systems requires careful planning and adherence to manuf...
+   5. CrossEncoder: -11.398 | Fusion: 0.450 | Rang orig: #4
+      safety_manual|safety_001
+      Safety procedures require proper shutdown before maintenance. Always disconnect ...
+
+📊 ANALYSE DES CHANGEMENTS:
+   🔄 Positions changées: 4/5
+   ⏱️ Temps par document: 27.9ms
+   ✅ Le meilleur résultat contient les termes clés de la requête
+✅ Re-ranking basique: RÉUSSI
+
+------------------------------------------------------------
+ TEST: CAS LIMITES
+------------------------------------------------------------
+
+============================================================
+ TEST CAS LIMITES
+============================================================
+🔄 Chargement CrossEncoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+🎯 Device cible: cpu
+✅ CrossEncoder chargé avec succès sur cpu
+📊 Test 1: Liste de candidats vide
+⚠️ Aucun candidat à re-ranker
+   Résultat: 0 documents (attendu: 0)
+
+📊 Test 2: Requête vide
+⚠️ Requête vide pour re-ranking, retour résultats originaux
+   Résultat: 2 documents
+   Ordre conservé: True
+
+📊 Test 3: Candidats avec textes vides
+🎯 Re-ranking de 3 candidats avec CrossEncoder
+⚠️ Candidat 1 ignoré (texte vide)
+⚠️ Candidat 3 ignoré (texte vide)
+📊 Scoring 1 paires query-document...
+✅ Re-ranking terminé
+🏆 Top-1 score: -10.9076
+   Candidats originaux: 3
+   Candidats re-rankés: 1
+
+📊 Test 4: top_k > nombre de candidats
+🎯 Re-ranking de 2 candidats avec CrossEncoder
+📊 Scoring 2 paires query-document...
+✅ Re-ranking terminé
+🏆 Top-1 score: -8.7291
+🥈 Top-2 score: -10.1280
+   Candidats: 2, top_k: 10, résultat: 2
+
+📊 Test 5: Texte très long
+🎯 Re-ranking de 1 candidats avec CrossEncoder
+📊 Scoring 1 paires query-document...
+✅ Re-ranking terminé
+🏆 Top-1 score: -11.0642
+   Texte original: 2600 chars
+   Traitement réussi: True
+✅ Cas limites: RÉUSSI
+
+------------------------------------------------------------
+ TEST: SCORE PAIRS
+------------------------------------------------------------
+
+============================================================
+ TEST SCORE PAIRS
+============================================================
+🔄 Chargement CrossEncoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+🎯 Device cible: cpu
+✅ CrossEncoder chargé avec succès sur cpu
+🔍 Test de 4 paires query-document
+✅ Scoring terminé (0.03s)
+
+📊 RÉSULTATS DES SCORES:
+   1. Score: 6.3944
+      Query: "robot error"
+      Doc: "The robot displays an error message on screen..."
+
+   2. Score: -11.2621
+      Query: "robot error"
+      Doc: "Installing new software on the computer..."
+
+   3. Score: 2.3222
+      Query: "calibration procedure"
+      Doc: "Follow calibration steps carefully for accuracy..."
+
+   4. Score: -11.2759
+      Query: "calibration procedure"
+      Doc: "The weather is nice today..."
+
+📈 Score moyen pertinent: 4.3583
+📉 Score moyen non-pertinent: -11.2690
+✅ Logique des scores correcte (pertinent > non-pertinent)
+✅ Score pairs: RÉUSSI
+
+------------------------------------------------------------
+ TEST: PERFORMANCE
+------------------------------------------------------------
+
+============================================================
+ TEST PERFORMANCE
+============================================================
+🔄 Chargement CrossEncoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+🎯 Device cible: cpu
+✅ CrossEncoder chargé avec succès sur cpu
+🚀 Benchmark avec requête: "FANUC robot error ACAL-006"
+
+📊 Test avec 5 candidats:
+🎯 Re-ranking de 5 candidats avec CrossEncoder
+📊 Scoring 5 paires query-document...
+✅ Re-ranking terminé
+🏆 Top-1 score: 3.9098
+🥈 Top-2 score: 2.2814
+   ⏱️ Temps total: 0.042s
+   📈 Documents/seconde: 119.5
+   📊 ms par document: 8.4ms
+   ✅ Résultats: 5
+
+📊 Test avec 10 candidats:
+🎯 Re-ranking de 10 candidats avec CrossEncoder
+📊 Scoring 10 paires query-document...
+✅ Re-ranking terminé
+🏆 Top-1 score: 3.9342
+🥈 Top-2 score: 3.9098
+   ⏱️ Temps total: 0.033s
+   📈 Documents/seconde: 301.4
+   📊 ms par document: 3.3ms
+   ✅ Résultats: 5
+
+📊 Test avec 20 candidats:
+🎯 Re-ranking de 20 candidats avec CrossEncoder
+📊 Scoring 20 paires query-document...
+✅ Re-ranking terminé
+🏆 Top-1 score: 3.9896
+🥈 Top-2 score: 3.9739
+   ⏱️ Temps total: 0.056s
+   📈 Documents/seconde: 358.4
+   📊 ms par document: 2.8ms
+   ✅ Résultats: 5
+
+🧪 Test benchmark intégré:
+🚀 Benchmark CrossEncoder: 5 documents, 3 runs
+   Run 1: 0.014s
+   Run 2: 0.014s
+   Run 3: 0.016s
+📊 Résultats benchmark:
+   avg_time_seconds: 0.014
+   min_time_seconds: 0.014
+   max_time_seconds: 0.016
+   std_time_seconds: 0.001
+   documents_per_second: 344.932
+   device: cpu
+   num_documents: 5
+   num_runs: 3
+✅ Performance: RÉUSSI
+
+------------------------------------------------------------
+ TEST: DONNÉES FUSION
+------------------------------------------------------------
+
+============================================================
+ TEST AVEC DONNÉES FUSION RÉALISTES
+============================================================
+🔄 Chargement CrossEncoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+🎯 Device cible: cpu
+✅ CrossEncoder chargé avec succès sur cpu
+🔍 Requête réaliste: "I got ACAL-006 error on my FANUC teach pendant, what should I do?"
+📊 5 candidats de fusion
+
+📋 ORDRE INITIAL (par score fusion):
+   1. Fusion: 0.8245 | BM25: 0.9100 | FAISS: 0.7390
+      fanuc_troubleshooting_guide
+      ACAL-006 Teach Pendant Error: This error indicates a communication failure between the teach pendant...
+
+   2. Fusion: 0.7891 | BM25: 0.8200 | FAISS: 0.7582
+      fanuc_error_codes_manual
+      ACAL series errors are related to calibration and positioning systems. ACAL-006 specifically refers ...
+
+   3. Fusion: 0.7234 | BM25: 0.6890 | FAISS: 0.7578
+      maintenance_procedures
+      When troubleshooting communication errors between robot components, always start with physical conne...
+
+   4. Fusion: 0.5467 | BM25: 0.5100 | FAISS: 0.5834
+      safety_procedures
+      When any error occurs on the robot system, immediately stop all operations and assess the situation....
+
+   5. Fusion: 0.4123 | BM25: 0.3890 | FAISS: 0.4356
+      installation_guide
+      During initial robot installation, ensure all communication cables are properly routed and secured. ...
+
+🎯 Re-ranking avec CrossEncoder...
+🎯 Re-ranking de 5 candidats avec CrossEncoder
+📊 Scoring 5 paires query-document...
+✅ Re-ranking terminé
+🏆 Top-1 score: 7.0242
+🥈 Top-2 score: 5.3975
+✅ Re-ranking terminé (0.047s)
+
+🏆 ORDRE APRÈS RE-RANKING:
+   1. CrossEncoder: 7.0242 | Fusion: 0.8245 | Rang orig: #1
+      fanuc_troubleshooting_guide
+      ACAL-006 Teach Pendant Error: This error indicates a communication failure between the teach pendant...
+      ✅ Excellent match (contient ACAL-006 + teach pendant)
+
+   2. CrossEncoder: 5.3975 | Fusion: 0.7891 | Rang orig: #2
+      fanuc_error_codes_manual
+      ACAL series errors are related to calibration and positioning systems. ACAL-006 specifically refers ...
+      ✅ Excellent match (contient ACAL-006 + teach pendant)
+
+   3. CrossEncoder: -10.1775 | Fusion: 0.5467 | Rang orig: #4
+      safety_procedures
+      When any error occurs on the robot system, immediately stop all operations and assess the situation....
+      ❌ Match faible
+
+   4. CrossEncoder: -10.9621 | Fusion: 0.7234 | Rang orig: #3
+      maintenance_procedures
+      When troubleshooting communication errors between robot components, always start with physical conne...
+      ⚠️ Match partiel
+
+   5. CrossEncoder: -11.4476 | Fusion: 0.4123 | Rang orig: #5
+      installation_guide
+      During initial robot installation, ensure all communication cables are properly routed and secured. ...
+      ⚠️ Match partiel
+
+📊 ANALYSE DE L'AMÉLIORATION:
+   🔄 safety_procedures: position 4 → 3
+   🔄 maintenance_procedures: position 3 → 4
+   📈 Changements de position: 2/5
+   ✅ Le résultat #1 contient ACAL-006 (très pertinent)
+✅ Données fusion: RÉUSSI
+
+============================================================
+ 📊 RAPPORT FINAL
+============================================================
+⏱️ Temps total: 9.9s
+✅ Tests réussis: 8/8
+📈 Taux de réussite: 100.0%
+
+🎉 CROSSENCODER FONCTIONNE CORRECTEMENT!
+🏅 Le système de re-ranking est opérationnel
+💯 TOUS LES TESTS RÉUSSIS!
+
+============================================================
+ ✅ TEST CROSSENCODER TERMINÉ
+============================================================
