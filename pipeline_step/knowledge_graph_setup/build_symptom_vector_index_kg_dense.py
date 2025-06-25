@@ -1,6 +1,19 @@
 """
-Construction index FAISS pour Knowledge Graph Dense avec connexion Cloud/Local
-Index basé sur les symptômes du KG Dense
+FAISS Vector Index Construction for Dense Knowledge Graph
+
+This module constructs a FAISS semantic search index specifically for the Dense Knowledge Graph
+configuration. The index is built using unique symptom texts from the densified structure,
+providing semantic search capabilities for the hybrid metric system in dense configurations
+with enhanced relationship modeling.
+
+Key components:
+- Dense symptom extraction: Retrieval of unique symptoms from densified Neo4j structure
+- FAISS index construction: High-performance semantic indexing with normalized embeddings
+- Cloud/local connection management: Intelligent fallback system for database connectivity
+- Metadata preservation: Comprehensive storage of equipment information and statistics
+
+Dependencies: neo4j, faiss-cpu, sentence-transformers, numpy, pickle, pyyaml, python-dotenv
+Usage: Executed as part of the Dense KG pipeline for semantic search index creation
 """
 
 import os
@@ -15,7 +28,12 @@ import yaml
 load_dotenv()
 
 def load_settings():
-    """Charge la configuration depuis settings.yaml"""
+    """
+    Load system configuration from settings.yaml file
+    
+    Returns:
+        dict: Loaded configuration settings
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(script_dir, "..", "..", "config", "settings.yaml")
     with open(config_path, 'r', encoding='utf-8') as file:
@@ -23,16 +41,24 @@ def load_settings():
 
 def get_neo4j_connection(kg_type="dense"):
     """
-    🌐 Connexion intelligente Cloud/Local
-    kg_type: "dense", "sparse", ou "dense_sc"
+    Establish intelligent Cloud/Local Neo4j connection
+    
+    Implements cloud-first connection strategy with automatic local fallback.
+    Supports multiple Knowledge Graph types with appropriate credential selection.
+    
+    Args:
+        kg_type (str): Knowledge Graph type ("dense", "sparse", or "dense_sc")
+        
+    Returns:
+        neo4j.Driver: Configured Neo4j database driver
     """
     load_dotenv()
     
-    # Priorité au Cloud si activé
+    # Priority to Cloud if enabled
     cloud_enabled = os.getenv("NEO4J_CLOUD_ENABLED", "false").lower() == "true"
     
     if cloud_enabled:
-        print(f"🌐 MODE CLOUD pour {kg_type.upper()}")
+        print(f"CLOUD MODE for {kg_type.upper()}")
         
         if kg_type == "dense":
             uri = os.getenv("NEO4J_DENSE_CLOUD_URI")
@@ -45,14 +71,14 @@ def get_neo4j_connection(kg_type="dense"):
             password = os.getenv("NEO4J_DENSE_SC_CLOUD_PASS")
         
         if uri and password:
-            print(f"🔌 Connexion Cloud {kg_type}: {uri}")
+            print(f"Cloud connection {kg_type}: {uri}")
             return GraphDatabase.driver(uri, auth=("neo4j", password))
         else:
-            print(f"❌ Credentials cloud manquants pour {kg_type}")
+            print(f"Missing cloud credentials for {kg_type}")
             cloud_enabled = False
     
-    # Fallback Local
-    print(f"🏠 MODE LOCAL pour {kg_type.upper()}")
+    # Local fallback
+    print(f"LOCAL MODE for {kg_type.upper()}")
     
     if kg_type == "dense":
         uri = os.getenv("NEO4J_URI_DENSE", "bolt://host.docker.internal:7687")
@@ -67,40 +93,54 @@ def get_neo4j_connection(kg_type="dense"):
         user = os.getenv("NEO4J_USER_DENSE_SC", "neo4j")
         password = os.getenv("NEO4J_PASS_DENSE_SC", "password")
     
-    print(f"🔌 Connexion Local {kg_type}: {uri}")
+    print(f"Local connection {kg_type}: {uri}")
     return GraphDatabase.driver(uri, auth=(user, password))
 
 def build_symptom_index():
     """
-    Construit l'index FAISS à partir des symptômes présents dans la Knowledge Base Dense
-    Sauvegarde dans data/knowledge_base/symptom_embeddings_dense/
-    """
-    print("🚀 Construction de l'index FAISS pour les symptômes de la Knowledge Base Dense...")
+    Construct FAISS index from symptoms in Dense Knowledge Base
     
-    # === CONFIGURATION ===
+    Creates a high-performance semantic search index using unique symptom texts
+    from the Dense Knowledge Graph. The index leverages the densified structure
+    where symptoms may be connected to multiple causes, providing enhanced
+    semantic search capabilities for the hybrid metric system.
+    
+    The function performs the following operations:
+    1. Extracts unique symptoms with equipment metadata from Dense KG
+    2. Generates normalized embeddings using SentenceTransformer
+    3. Constructs FAISS IndexFlatIP for semantic similarity
+    4. Saves index and comprehensive metadata
+    
+    Raises:
+        ValueError: When no symptoms are found in the Dense Knowledge Graph
+        Exception: For database connection or index construction errors
+    """
+    print("Constructing FAISS index for Dense Knowledge Base symptoms...")
+    
+    # Configuration
     config = load_settings()
     
-    # 🆕 CONNEXION CLOUD/LOCAL INTELLIGENTE
+    # Intelligent Cloud/Local connection
     driver = get_neo4j_connection("dense")
     
-    # Modèle d'embedding
+    # Embedding model
     model_name = config["models"]["embedding_model"]
-    print(f"📦 Chargement du modèle : {model_name}")
+    print(f"Loading model: {model_name}")
     
-    # Chemin de sortie pour les embeddings Dense
+    # Output path for Dense embeddings
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(script_dir, "..", "..", "data", "knowledge_base", "symptom_embeddings_dense")
 
     try:
-        # Test de connexion
+        # Connection test
         with driver.session() as test_session:
             test_session.run("RETURN 1")
-        print("✅ Connexion Neo4j Dense réussie")
+        print("Neo4j Dense connection successful")
         
-        # === EXTRACTION DES SYMPTÔMES DE LA KNOWLEDGE BASE DENSE ===
-        print("📊 Extraction des symptômes de la Knowledge Base Dense...")
+        # Dense Knowledge Base symptom extraction
+        print("Extracting symptoms from Dense Knowledge Base...")
         with driver.session() as session:
-            # Récupération de tous les symptômes uniques + equipment
+            # Retrieve all unique symptoms with equipment
             result = session.run("""
                 MATCH (s:Symptom) 
                 RETURN DISTINCT s.name AS name, s.equipment AS equipment
@@ -114,16 +154,16 @@ def build_symptom_index():
                     'equipment': record["equipment"] or 'unknown'
                 })
         
-        print(f"✅ {len(symptoms_data)} symptômes uniques extraits de la Knowledge Base Dense")
+        print(f"Extracted {len(symptoms_data)} unique symptoms from Dense Knowledge Base")
         
         if not symptoms_data:
-            raise ValueError("❌ Aucun symptôme trouvé dans la Knowledge Base Dense!")
+            raise ValueError("No symptoms found in Dense Knowledge Base")
         
-        # Extraction des noms pour embedding
+        # Name extraction for embedding
         symptom_names = [s['name'] for s in symptoms_data]
         
-        # === GÉNÉRATION DES EMBEDDINGS ===
-        print("🧠 Génération des embeddings avec SentenceTransformer...")
+        # Embedding generation
+        print("Generating embeddings with SentenceTransformer...")
         model = SentenceTransformer(model_name)
         embeddings = model.encode(
             symptom_names, 
@@ -132,30 +172,30 @@ def build_symptom_index():
             convert_to_numpy=True
         )
         
-        print(f"✅ Embeddings générés : {embeddings.shape}")
+        print(f"Embeddings generated: {embeddings.shape}")
         
-        # === CONSTRUCTION DE L'INDEX FAISS ===
-        print("🔧 Construction de l'index FAISS...")
+        # FAISS index construction
+        print("Constructing FAISS index...")
         dim = embeddings.shape[1]
-        index = faiss.IndexFlatIP(dim)  # Inner Product pour embeddings normalisés
+        index = faiss.IndexFlatIP(dim)  # Inner Product for normalized embeddings
         index.add(embeddings.astype('float32'))
         
-        print(f"✅ Index FAISS créé avec {index.ntotal} vecteurs de dimension {dim}")
+        print(f"FAISS index created with {index.ntotal} vectors of dimension {dim}")
         
-        # === SAUVEGARDE ===
-        print(f"💾 Sauvegarde dans : {output_dir}")
+        # Save operations
+        print(f"Saving to: {output_dir}")
         os.makedirs(output_dir, exist_ok=True)
         
-        # Sauvegarde de l'index FAISS
+        # FAISS index save
         index_path = os.path.join(output_dir, "index.faiss")
         faiss.write_index(index, index_path)
-        print(f"✅ Index FAISS sauvegardé : {index_path}")
+        print(f"FAISS index saved: {index_path}")
         
-        # Sauvegarde des métadonnées enrichies
+        # Enhanced metadata save
         metadata_path = os.path.join(output_dir, "symptom_embedding_dense.pkl")
         metadata = {
             'symptom_names': symptom_names,
-            'symptoms_data': symptoms_data,  # 🆕 Données complètes avec equipment
+            'symptoms_data': symptoms_data,  # Complete data with equipment
             'model_name': model_name,
             'embedding_dim': dim,
             'total_symptoms': len(symptom_names),
@@ -165,58 +205,65 @@ def build_symptom_index():
         
         with open(metadata_path, "wb") as f:
             pickle.dump(metadata, f)
-        print(f"✅ Métadonnées sauvegardées : {metadata_path}")
+        print(f"Metadata saved: {metadata_path}")
         
-        # === STATISTIQUES FINALES ===
+        # Final statistics
         unique_equipments = set(s['equipment'] for s in symptoms_data)
         
-        print("\n📈 STATISTIQUES DE L'INDEX DENSE :")
-        print(f"   • Symptômes indexés : {len(symptom_names)}")
-        print(f"   • Dimension des embeddings : {dim}")
-        print(f"   • Modèle utilisé : {model_name}")
-        print(f"   • Source : Knowledge Base Dense")
-        print(f"   • Mode connexion : {metadata['connection_mode'].upper()}")
-        print(f"   • Taille index FAISS : {os.path.getsize(index_path) / 1024 / 1024:.2f} MB")
+        print("\nDENSE INDEX STATISTICS:")
+        print(f"   Indexed symptoms: {len(symptom_names)}")
+        print(f"   Embedding dimension: {dim}")
+        print(f"   Model used: {model_name}")
+        print(f"   Source: Dense Knowledge Base")
+        print(f"   Connection mode: {metadata['connection_mode'].upper()}")
+        print(f"   FAISS index size: {os.path.getsize(index_path) / 1024 / 1024:.2f} MB")
         
-        # Equipements couverts
-        print(f"   • Équipements couverts : {len(unique_equipments)}")
+        # Equipment coverage
+        print(f"   Equipment types covered: {len(unique_equipments)}")
         for eq in sorted(unique_equipments):
             count = sum(1 for s in symptoms_data if s['equipment'] == eq)
-            print(f"     - {eq}: {count} symptômes")
+            print(f"     - {eq}: {count} symptoms")
         
-        print(f"\n📁 Fichiers générés :")
+        print(f"\nGenerated files:")
         print(f"     - {index_path}")
         print(f"     - {metadata_path}")
         
-        print("\n🎯 UTILISATION :")
-        print("   Cet index peut maintenant être utilisé pour la recherche vectorielle")
-        print("   des symptômes dans le pipeline RAG avec Knowledge Graph Dense.")
+        print("\nUSAGE:")
+        print("   This index can now be used for vector search")
+        print("   of symptoms in the RAG pipeline with Dense Knowledge Graph.")
         
     except Exception as e:
-        print(f"❌ ERREUR lors de la construction de l'index Dense : {str(e)}")
+        print(f"Error during Dense index construction: {str(e)}")
         raise
     finally:
         driver.close()
-        print("🔌 Connexion Neo4j fermée")
+        print("Neo4j connection closed")
 
 def main():
-    """Pipeline principal de construction de l'index FAISS Dense"""
-    print("🚀 DÉMARRAGE DE LA CONSTRUCTION DE L'INDEX FAISS DENSE")
+    """
+    Main pipeline for Dense FAISS index construction
+    
+    Orchestrates the complete process of extracting unique symptoms from the Dense
+    Knowledge Graph and constructing the corresponding FAISS semantic search index.
+    Provides comprehensive error handling and detailed progress reporting while
+    leveraging the enhanced relationship modeling of dense configurations.
+    """
+    print("DENSE FAISS INDEX CONSTRUCTION STARTUP")
     print("=" * 60)
-    print("📝 Objectif : Créer un index vectoriel des symptômes de la KB Dense")
-    print("🌐 Support : Cloud/Local automatique")
-    print("🎯 Sortie : data/knowledge_base/symptom_embeddings_dense/")
+    print("Objective: Create vector index for Dense KB symptoms")
+    print("Support: Automatic Cloud/Local connection")
+    print("Output: data/knowledge_base/symptom_embeddings_dense/")
     print()
     
     try:
         build_symptom_index()
-        print("\n✅ CONSTRUCTION DE L'INDEX FAISS DENSE TERMINÉE AVEC SUCCÈS !")
+        print("\nDENSE FAISS INDEX CONSTRUCTION COMPLETED SUCCESSFULLY")
         
     except FileNotFoundError as e:
-        print(f"❌ ERREUR : Fichier de configuration manquant : {str(e)}")
-        print("   Vérifiez que config/settings.yaml existe.")
+        print(f"ERROR: Missing configuration file: {str(e)}")
+        print("   Verify that config/settings.yaml exists.")
     except Exception as e:
-        print(f"❌ ERREUR INATTENDUE : {str(e)}")
+        print(f"UNEXPECTED ERROR: {str(e)}")
 
 if __name__ == "__main__":
     main()

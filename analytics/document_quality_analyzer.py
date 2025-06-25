@@ -1,3 +1,22 @@
+"""
+Document Quality Analyzer: Content Assessment and SCR Extraction Validation
+
+This module provides comprehensive quality analysis tools for processed JSON documents
+in the RAG diagnosis system. It evaluates document structure, content quality, and
+validates SCR (Symptom-Cause-Remedy) triplet extraction capabilities using sequential
+pattern matching techniques.
+
+Key components:
+- Document loading and structural analysis from JSON files
+- Statistical content assessment including word count and page coverage
+- Sequential SCR triplet extraction with pattern matching optimization
+- Random text sampling for content inspection and validation
+- Quality metrics computation and reporting
+
+Dependencies: json, re, pathlib, yaml, random
+Usage: Run as standalone script for document quality assessment and SCR validation
+"""
+
 import os
 import json
 import random
@@ -5,21 +24,45 @@ import re
 from pathlib import Path
 from typing import Dict, Any, List
 import yaml
-
 import sys
-from pathlib import Path
 
-# Ajouter la racine du projet au Python path
+# Add project root to Python path
 sys.path.append(str(Path(__file__).parent.parent))
 
 def load_settings() -> Dict[str, Any]:
-    """Charge la configuration depuis settings.yaml"""
+    """
+    Load configuration settings from YAML file.
+    
+    Reads the main configuration file to access project paths and settings
+    required for document quality analysis.
+    
+    Returns:
+        Dict[str, Any]: Configuration dictionary containing all project settings
+        
+    Raises:
+        FileNotFoundError: If settings.yaml file is not found
+        yaml.YAMLError: If YAML file is malformed
+    """
     config_path = Path(__file__).parent.parent / "config" / "settings.yaml"
     with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 def load_all_documents(json_dir: Path) -> List[Dict[str, Any]]:
-    """Charge tous les documents JSON depuis le répertoire intelligent/"""
+    """
+    Load all JSON documents from the intelligent extraction directory.
+    
+    Processes all JSON files in the specified directory and extracts document
+    metadata including page count, text content, and basic statistics.
+    
+    Args:
+        json_dir (Path): Directory containing processed JSON documents
+        
+    Returns:
+        List[Dict[str, Any]]: List of document dictionaries with metadata and content
+        
+    Raises:
+        Exception: If JSON files cannot be loaded or parsed
+    """
     documents = []
     json_files = list(json_dir.glob("*.json"))
     
@@ -42,38 +85,50 @@ def load_all_documents(json_dir: Path) -> List[Dict[str, Any]]:
             documents.append(doc_info)
             
         except Exception as e:
-            print(f"⚠️ Erreur lors du chargement de {json_file}: {e}")
+            print(f"Warning: Error loading {json_file}: {e}")
     
     return documents
 
 def extract_scr_triplets_sequential(text: str) -> List[Dict[str, Any]]:
-    """Extrait les triplets SCR avec la méthode séquentielle optimisée"""
+    """
+    Extract SCR triplets using optimized sequential pattern matching.
+    
+    Implements a window-based approach to identify error codes and their associated
+    causes and remedies within contextual boundaries. Uses regex patterns to
+    locate structured content and extract complete triplets.
+    
+    Args:
+        text (str): Full document text to analyze for SCR patterns
+        
+    Returns:
+        List[Dict[str, Any]]: List of extracted triplets with error codes, symptoms, causes, and remedies
+    """
     triplets = []
     error_codes = re.findall(r'[A-Z]+-\d+', text)
     
     for i, code in enumerate(error_codes):
-        # Trouver la position de ce code
+        # Find position of this code
         code_pos = text.find(code)
         if code_pos == -1:
             continue
             
-        # Définir la fenêtre de recherche (jusqu'au prochain code ou fin de texte)
+        # Define search window (until next code or end of text)
         if i < len(error_codes) - 1:
             next_code = error_codes[i + 1]
             next_pos = text.find(next_code, code_pos + len(code))
             if next_pos != -1:
                 window = text[code_pos:next_pos]
             else:
-                window = text[code_pos:code_pos + 1500]  # Fenêtre plus large
+                window = text[code_pos:code_pos + 1500]  # Larger window
         else:
             window = text[code_pos:code_pos + 1500]
         
-        # Chercher cause et remedy dans cette fenêtre
+        # Search for cause and remedy in this window
         cause_match = re.search(r'Cause:\s*(.*?)(?=Remedy:|$)', window, re.DOTALL | re.IGNORECASE)
         remedy_match = re.search(r'Remedy:\s*(.*?)(?=$|\n\n|\d+\.\d+)', window, re.DOTALL | re.IGNORECASE)
         
         if cause_match and remedy_match:
-            # Extraire le titre/symptôme (ligne avec le code)
+            # Extract title/symptom (line with the code)
             symptom_match = re.search(rf'({re.escape(code)}[^\n]*)', window)
             symptom = symptom_match.group(1) if symptom_match else code
             
@@ -87,7 +142,19 @@ def extract_scr_triplets_sequential(text: str) -> List[Dict[str, Any]]:
     return triplets
 
 def extract_random_sample(text: str, num_tokens: int = 1000) -> Dict[str, Any]:
-    """Extrait un échantillon aléatoire de tokens depuis le texte"""
+    """
+    Extract random sample of tokens from document text for inspection.
+    
+    Selects a representative portion of the document text for quality assessment
+    and content validation. Provides position information and coverage metrics.
+    
+    Args:
+        text (str): Full document text to sample from
+        num_tokens (int): Number of tokens to include in sample (default: 1000)
+        
+    Returns:
+        Dict[str, Any]: Sample information including text, position, and coverage percentage
+    """
     words = text.split()
     total_words = len(words)
     
@@ -114,117 +181,161 @@ def extract_random_sample(text: str, num_tokens: int = 1000) -> Dict[str, Any]:
     }
 
 def display_document_stats(documents: List[Dict[str, Any]]):
-    """Affiche les statistiques essentielles des documents"""
+    """
+    Display essential document statistics and metrics.
+    
+    Computes and presents aggregate statistics across all loaded documents
+    including page counts, word counts, and coverage metrics.
+    
+    Args:
+        documents (List[Dict[str, Any]]): List of document metadata dictionaries
+        
+    Returns:
+        None: Statistics are printed to console
+    """
     if not documents:
-        print("❌ Aucun document trouvé!")
+        print("No documents found")
         return
     
     total_pages = sum(doc['num_pages'] for doc in documents)
     total_words = sum(doc['word_count'] for doc in documents)
     
-    print(f"📊 STATISTIQUES GÉNÉRALES")
+    print(f"GENERAL STATISTICS")
     print(f"{'='*60}")
-    print(f"📄 Documents: {len(documents)}")
-    print(f"📖 Pages totales: {total_pages:,}")
-    print(f"📝 Mots totaux: {total_words:,}")
-    print(f"📏 Mots par page (moyenne): {total_words // total_pages:,}")
+    print(f"Documents: {len(documents)}")
+    print(f"Total pages: {total_pages:,}")
+    print(f"Total words: {total_words:,}")
+    print(f"Words per page (average): {total_words // total_pages:,}")
     print()
 
 def display_scr_results(doc: Dict[str, Any], triplets: List[Dict[str, Any]]):
-    """Affiche les résultats de l'extraction SCR"""
+    """
+    Display SCR extraction results and detection metrics.
+    
+    Presents comprehensive analysis of SCR triplet extraction including
+    detection rates, example triplets, and quality assessment.
+    
+    Args:
+        doc (Dict[str, Any]): Document metadata and content
+        triplets (List[Dict[str, Any]]): Extracted SCR triplets
+        
+    Returns:
+        None: Results are printed to console
+    """
     total_error_codes = len(re.findall(r'[A-Z]+-\d+', doc['full_text']))
     detection_rate = (len(triplets) / total_error_codes * 100) if total_error_codes > 0 else 0
     
-    print(f"🎯 EXTRACTION SCR (Méthode séquentielle)")
+    print(f"SCR EXTRACTION (Sequential Method)")
     print(f"{'='*60}")
-    print(f"📄 Document analysé: {doc['document_id']}")
-    print(f"🚨 Codes d'erreur totaux: {total_error_codes:,}")
-    print(f"✅ Triplets SCR détectés: {len(triplets):,}")
-    print(f"📊 Taux de détection: {detection_rate:.1f}%")
+    print(f"Document analyzed: {doc['document_id']}")
+    print(f"Total error codes: {total_error_codes:,}")
+    print(f"SCR triplets detected: {len(triplets):,}")
+    print(f"Detection rate: {detection_rate:.1f}%")
     print()
     
-    # Afficher UN exemple de triplet
+    # Display one example triplet
     if triplets:
         example = triplets[0]
-        print(f"📋 EXEMPLE DE TRIPLET SCR:")
+        print(f"EXAMPLE SCR TRIPLET:")
         print(f"{'─'*60}")
-        print(f"🔸 Code d'erreur: {example['error_code']}")
-        print(f"🔸 Symptôme: {example['symptom']}")
-        print(f"🔸 Cause: {example['cause'][:150]}{'...' if len(example['cause']) > 150 else ''}")
-        print(f"🔸 Remède: {example['remedy'][:150]}{'...' if len(example['remedy']) > 150 else ''}")
+        print(f"Error code: {example['error_code']}")
+        print(f"Symptom: {example['symptom']}")
+        print(f"Cause: {example['cause'][:150]}{'...' if len(example['cause']) > 150 else ''}")
+        print(f"Remedy: {example['remedy'][:150]}{'...' if len(example['remedy']) > 150 else ''}")
         print()
 
 def display_text_sample(doc: Dict[str, Any], sample_info: Dict[str, Any]):
-    """Affiche un échantillon du texte"""
-    print(f"📝 APERÇU DU DOCUMENT JSON")
+    """
+    Display document text sample for content inspection.
+    
+    Shows a formatted sample of document content with position information
+    and basic formatting for readability assessment.
+    
+    Args:
+        doc (Dict[str, Any]): Document metadata
+        sample_info (Dict[str, Any]): Sample text and position information
+        
+    Returns:
+        None: Sample text is printed to console
+    """
+    print(f"DOCUMENT JSON PREVIEW")
     print(f"{'='*60}")
-    print(f"📄 Document: {doc['document_id']}")
-    print(f"📍 Position: mots {sample_info['start_position']:,} à {sample_info['end_position']:,}")
-    print(f"📏 Couverture: {sample_info['coverage_percent']:.1f}% du document")
+    print(f"Document: {doc['document_id']}")
+    print(f"Position: words {sample_info['start_position']:,} to {sample_info['end_position']:,}")
+    print(f"Coverage: {sample_info['coverage_percent']:.1f}% of document")
     print(f"{'─'*60}")
     
-    # Afficher le texte avec une mise en forme simple
+    # Display text with simple formatting
     sample_text = sample_info['sample']
     lines = sample_text.replace('. ', '.\n').split('\n')
     
-    # Prendre seulement les 15 premières lignes pour éviter le verbeux
+    # Take only the first 15 lines to avoid verbosity
     for line in lines[:15]:
         line = line.strip()
-        if line and len(line) > 10:  # Ignorer les lignes trop courtes
+        if line and len(line) > 10:  # Ignore lines that are too short
             if len(line) > 100:
                 print(f"   {line[:100]}...")
             else:
                 print(f"   {line}")
     
     if len(lines) > 15:
-        print(f"   ... ({len(lines) - 15} lignes supplémentaires)")
+        print(f"   ... ({len(lines) - 15} additional lines)")
     print()
 
 def main():
+    """
+    Main execution function for document quality analysis.
+    
+    Orchestrates the complete analysis workflow including document loading,
+    statistical analysis, SCR extraction validation, and content sampling.
+    
+    Returns:
+        None: Results are displayed in console and analysis is completed
+    """
     try:
-        print("🔍 Analyse des documents JSON nettoyés...")
+        print("Analyzing cleaned JSON documents...")
         
-        # Charger la configuration
+        # Load configuration
         settings = load_settings()
         json_dir = Path(settings["paths"]["json_documents"])
         
         if not json_dir.exists():
-            print(f"❌ Le répertoire {json_dir} n'existe pas!")
-            print(f"💡 Exécutez d'abord: python 01_extract_text_PyMuPDF_intelligent.py")
+            print(f"Directory {json_dir} does not exist")
+            print(f"Please run first: python 01_extract_text_PyMuPDF_intelligent.py")
             return
         
-        # Charger les documents
+        # Load documents
         documents = load_all_documents(json_dir)
         if not documents:
-            print("❌ Aucun document JSON trouvé!")
+            print("No JSON documents found")
             return
         
-        # Statistiques générales
+        # General statistics
         display_document_stats(documents)
         
-        # Analyser le document le plus volumineux
+        # Analyze the largest document
         target_doc = max(documents, key=lambda x: x['word_count'])
-        print(f"🎯 Analyse SCR sur le document principal: {target_doc['document_id']}")
+        print(f"SCR analysis on main document: {target_doc['document_id']}")
         print()
         
-        # Extraction SCR avec méthode séquentielle
+        # SCR extraction with sequential method
         triplets = extract_scr_triplets_sequential(target_doc['full_text'])
         display_scr_results(target_doc, triplets)
         
-        # Aperçu du document
+        # Document preview
         sample_info = extract_random_sample(target_doc['full_text'], num_tokens=800)
         display_text_sample(target_doc, sample_info)
         
-        # Résumé final
-        print(f"💡 RÉSUMÉ")
+        # Final summary
+        print(f"SUMMARY")
         print(f"{'='*40}")
-        print(f"✅ Méthode séquentielle validée")
-        print(f"📊 ~{len(triplets):,} triplets extractibles")
-        print(f"🚀 Prêt pour réécrire 00_extract_scr_triplets.py")
+        print(f"Sequential method validated")
+        print(f"Approximately {len(triplets):,} extractable triplets")
+        print(f"Ready to rewrite 00_extract_scr_triplets.py")
         print()
         
     except Exception as e:
-        print(f"❌ Erreur: {e}")
+        print(f"Error: {e}")
         import traceback
         traceback.print_exc()
 

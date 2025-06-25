@@ -1,55 +1,79 @@
-# Utilise une image Python légère compatible multi-architecture
+# RAG Application Docker Configuration
+#
+# This Dockerfile creates a containerized environment for the RAG (Retrieval-Augmented Generation)
+# diagnosis application. It implements a multi-stage build process optimized for Python applications
+# and is designed for production deployment with Streamlit web interface and Poetry dependency management.
+#
+# Key components:
+# - Base image: Python 3.11 slim for optimal size and compatibility
+# - Dependency management: Poetry for reproducible builds and dependency resolution
+# - Environment optimization: Python environment variables for performance
+# - System dependencies: Essential build tools and libraries for RAG components
+# - Port configuration: Streamlit web server on port 8501
+# - Security configuration: Streamlit server settings optimized for containerized deployment
+#
+# Dependencies: Python 3.11, Poetry 1.8.3, Streamlit, system build tools
+# Usage: docker build -t diagnosis-app . && docker run -p 8501:8501 diagnosis-app
+
+# Use lightweight Python image compatible with multi-architecture deployment
 FROM python:3.11-slim
 
-# Variables d'environnement pour optimiser Python
+# Environment variables for Python optimization and performance
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PIP_NO_CACHE_DIR=1
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Ajout du chemin Python pour le projet
+# Add Python path for the project module resolution
 ENV PYTHONPATH=/app
 
-# Installe les dépendances système nécessaires pour votre projet RAG
+# Install system dependencies required for RAG project components
+# Includes build tools for Python packages with native extensions
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Crée un dossier de travail dans le container
+# Create working directory in the container
 WORKDIR /app
 
-# Copie d'abord les fichiers de configuration Poetry pour optimiser le cache Docker
+# Copy Poetry configuration files first for Docker layer caching optimization
+# This allows dependency installation to be cached when source code changes
 COPY pyproject.toml poetry.lock* ./
 
-# Installe Poetry avec la version spécifiée
+# Install Poetry with specified version for reproducible builds
 RUN pip install poetry==1.8.3
 
-# Configure Poetry pour ne pas créer d'environnement virtuel (optimal pour Docker)
+# Configure Poetry to not create virtual environment (optimal for Docker containers)
+# Virtual environments are unnecessary in isolated container environments
 RUN poetry config virtualenvs.create false
 
-# Installe les dépendances via Poetry
-# --no-dev: pas de dépendances de développement
-# --no-interaction: mode non-interactif
-# --no-ansi: pas de couleurs dans les logs
+# Install project dependencies via Poetry
+# Configuration flags:
+# --no-dev: exclude development dependencies for production deployment
+# --no-interaction: non-interactive mode for automated builds
+# --no-ansi: disable color output in build logs
 RUN poetry install --no-dev --no-interaction --no-ansi
 
-# Copie le reste des fichiers du projet
+# Copy remaining project files after dependency installation
+# This layer will be rebuilt when source code changes but dependencies remain cached
 COPY . .
 
-# Crée les dossiers nécessaires pour les données et la configuration
+# Create necessary directories for data storage and configuration
+# Ensures proper directory structure for application runtime
 RUN mkdir -p /app/data /app/config /app/core
 
-# Expose le port Streamlit standard
+# Expose standard Streamlit port for web interface
 EXPOSE 8501
 
-# Configuration Streamlit pour Docker
-# --server.address=0.0.0.0 : écoute sur toutes les interfaces
-# --server.port=8501 : port standard Streamlit
-# --server.headless=true : mode headless pour Docker
-# --server.enableCORS=false : désactive CORS pour Docker
-# --server.enableXsrfProtection=false : désactive XSRF pour Docker
+# Streamlit server configuration optimized for Docker deployment
+# Configuration parameters:
+# --server.address=0.0.0.0: listen on all network interfaces for container access
+# --server.port=8501: standard Streamlit port for web interface
+# --server.headless=true: headless mode appropriate for containerized deployment
+# --server.enableCORS=false: disable CORS for simplified Docker networking
+# --server.enableXsrfProtection=false: disable XSRF protection for container environment
 CMD ["poetry", "run", "streamlit", "run", "streamlit_app.py", \
      "--server.address=0.0.0.0", \
      "--server.port=8501", \

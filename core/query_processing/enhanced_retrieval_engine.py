@@ -1,6 +1,20 @@
 """
-Moteur de retrieval amélioré - Version simplifiée
-Implémente la recherche avec variantes multiples et déduplication de base
+Enhanced Retrieval Engine: Multi-Variant Search with Deduplication
+
+This module implements an advanced retrieval system that processes multiple query variants
+and combines results from different search methods. It integrates lexical search, semantic
+search, hybrid fusion, and knowledge graph retrieval to provide comprehensive document
+retrieval with automatic deduplication and reranking capabilities.
+
+Key components:
+- Multi-variant query processing with candidate gathering from all variants
+- Integration with existing BM25, FAISS, and hybrid fusion modules
+- Simple content-based deduplication using hash comparison
+- Final ranking using CrossEncoder reranking with primary query
+- Knowledge graph triplet extraction for enhanced context
+
+Dependencies: hashlib, time, dataclasses, existing retrieval modules
+Usage: Import EnhancedRetrievalEngine for comprehensive multi-variant document retrieval
 """
 
 import os
@@ -10,7 +24,7 @@ from typing import List, Dict, Any, Tuple
 from dataclasses import dataclass
 import hashlib
 
-# Imports du projet existant
+# Project imports
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from .response_parser import ProcessedQuery
@@ -23,7 +37,7 @@ from core.retrieval_graph.dense_kg_querier import get_structured_context
 
 @dataclass
 class RetrievalResult:
-    """Résultat du retrieval amélioré"""
+    """Enhanced retrieval result container with processing metrics"""
     chunks: List[Dict[str, Any]]
     triplets: List[Dict[str, Any]]
     processing_time: float
@@ -32,8 +46,11 @@ class RetrievalResult:
 
 class EnhancedRetrievalEngine:
     """
-    Moteur de retrieval amélioré avec support des requêtes multiples
-    Utilise les modules existants (BM25, FAISS, fusion, reranking)
+    Enhanced retrieval engine with multi-query variant support.
+    
+    Integrates existing retrieval modules (BM25, FAISS, fusion, reranking)
+    to provide comprehensive search capabilities with automatic deduplication
+    and intelligent ranking across multiple query formulations.
     """
     
     def __init__(self, 
@@ -42,7 +59,19 @@ class EnhancedRetrievalEngine:
                  reranker: CrossEncoderReranker,
                  pool_size: int = 15,
                  final_top_k: int = 5):
+        """
+        Initialize enhanced retrieval engine with configured retrievers.
         
+        Sets up the multi-variant retrieval system with specified retrievers
+        and ranking parameters for optimal search performance.
+        
+        Args:
+            bm25_retriever (BM25Retriever): Lexical search retriever instance
+            faiss_retriever (FAISSRetriever): Semantic search retriever instance
+            reranker (CrossEncoderReranker): Reranking module for final scoring
+            pool_size (int): Size of candidate pool for intermediate results
+            final_top_k (int): Number of final results to return
+        """
         self.bm25 = bm25_retriever
         self.faiss = faiss_retriever
         self.reranker = reranker
@@ -51,26 +80,29 @@ class EnhancedRetrievalEngine:
     
     def search_with_variants(self, processed_query: ProcessedQuery) -> RetrievalResult:
         """
-        Recherche avec variantes multiples
+        Perform search using multiple query variants with comprehensive retrieval.
+        
+        Orchestrates the complete retrieval pipeline including candidate gathering,
+        deduplication, fusion, reranking, and knowledge graph enhancement.
         
         Args:
-            processed_query: Requête traitée par le LLM avec variantes
+            processed_query (ProcessedQuery): LLM-processed query with variants
             
         Returns:
-            RetrievalResult: Résultats finaux
+            RetrievalResult: Comprehensive retrieval results with metrics
         """
         start_time = time.time()
         
-        # Étape 1: Collecte des candidats depuis toutes les variantes
+        # Step 1: Gather candidates from all variants
         chunk_pool = self._gather_chunk_candidates(processed_query)
         
-        # Étape 2: Déduplication simple
+        # Step 2: Simple deduplication
         unique_chunks = self._deduplicate_chunks(chunk_pool)
         
-        # Étape 3: Fusion et reranking avec requête principale
+        # Step 3: Fusion and reranking with primary query
         final_chunks = self._final_ranking(processed_query.get_primary_query(), unique_chunks)
         
-        # Étape 4: Recherche Knowledge Graph
+        # Step 4: Knowledge graph search
         triplets = self._get_kg_triplets(processed_query.get_primary_query())
         
         processing_time = time.time() - start_time
@@ -83,10 +115,21 @@ class EnhancedRetrievalEngine:
         )
     
     def _gather_chunk_candidates(self, processed_query: ProcessedQuery) -> List[Dict]:
-        """Collecte les candidats depuis tous les retrievers et toutes les variantes"""
+        """
+        Gather candidates from all retrievers and query variants.
+        
+        Collects search results from both BM25 and FAISS retrievers across
+        all available query variants to maximize recall.
+        
+        Args:
+            processed_query (ProcessedQuery): Processed query with variants
+            
+        Returns:
+            List[Dict]: Combined pool of candidate chunks from all sources
+        """
         chunk_pool = []
         
-        # Requêtes à traiter (principale + variantes, max 3)
+        # Queries to process (primary + variants, max 3)
         all_queries = processed_query.get_all_queries()[:3]
         
         for i, query in enumerate(all_queries):
@@ -111,7 +154,18 @@ class EnhancedRetrievalEngine:
         return chunk_pool
     
     def _deduplicate_chunks(self, chunk_pool: List[Dict]) -> List[Dict]:
-        """Déduplication simple basée sur le hash du contenu"""
+        """
+        Simple deduplication based on content hash.
+        
+        Removes duplicate chunks using MD5 hash comparison of text content
+        to ensure unique results in the candidate pool.
+        
+        Args:
+            chunk_pool (List[Dict]): Pool of candidate chunks with potential duplicates
+            
+        Returns:
+            List[Dict]: Deduplicated list of unique chunks
+        """
         if not chunk_pool:
             return []
         
@@ -123,7 +177,7 @@ class EnhancedRetrievalEngine:
             if not content:
                 continue
             
-            # Hash du contenu
+            # Content hash
             content_hash = hashlib.md5(content.encode()).hexdigest()
             
             if content_hash not in seen_hashes:
@@ -133,21 +187,33 @@ class EnhancedRetrievalEngine:
         return unique_chunks
     
     def _final_ranking(self, primary_query: str, unique_chunks: List[Dict]) -> List[Dict]:
-        """Fusion et reranking final avec la requête principale"""
+        """
+        Final fusion and reranking with primary query.
+        
+        Performs hybrid fusion of BM25 and FAISS results followed by
+        CrossEncoder reranking to produce final ranked results.
+        
+        Args:
+            primary_query (str): Primary query for final ranking
+            unique_chunks (List[Dict]): Deduplicated candidate chunks
+            
+        Returns:
+            List[Dict]: Final ranked chunks limited to top_k results
+        """
         if not unique_chunks:
             return []
         
-        # Séparation par source pour la fusion
+        # Separate by source for fusion
         bm25_chunks = [c for c in unique_chunks if "BM25" in c.get("source", "")]
         faiss_chunks = [c for c in unique_chunks if "FAISS" in c.get("source", "")]
         
-        # Fusion si on a les deux types
+        # Fusion if both types available
         if bm25_chunks and faiss_chunks:
             fused_chunks = fuse_results(bm25_chunks, faiss_chunks, top_k=self.pool_size)
         else:
             fused_chunks = bm25_chunks + faiss_chunks
         
-        # Reranking avec CrossEncoder
+        # Reranking with CrossEncoder
         if self.reranker and fused_chunks:
             try:
                 return self.reranker.rerank(
@@ -158,12 +224,23 @@ class EnhancedRetrievalEngine:
             except Exception:
                 pass
         
-        # Fallback: tri par score
+        # Fallback: score-based sorting
         fused_chunks.sort(key=lambda x: x.get("fused_score", x.get("score", 0)), reverse=True)
         return fused_chunks[:self.final_top_k]
     
     def _get_kg_triplets(self, query: str) -> List[Dict]:
-        """Récupération des triplets depuis le Knowledge Graph"""
+        """
+        Retrieve triplets from knowledge graph.
+        
+        Extracts relevant knowledge graph triplets for the query to provide
+        additional structured context for response generation.
+        
+        Args:
+            query (str): Search query for knowledge graph lookup
+            
+        Returns:
+            List[Dict]: List of relevant knowledge graph triplets
+        """
         try:
             kg_context = get_structured_context(query, format_type="json", max_triplets=3)
             
@@ -177,11 +254,23 @@ class EnhancedRetrievalEngine:
         return []
 
 
-# Fonction utilitaire
 def create_enhanced_retrieval_engine(bm25_retriever: BM25Retriever,
                                    faiss_retriever: FAISSRetriever,
                                    reranker: CrossEncoderReranker) -> EnhancedRetrievalEngine:
-    """Crée un moteur de retrieval amélioré"""
+    """
+    Create enhanced retrieval engine instance.
+    
+    Factory function for convenient instantiation of enhanced retrieval engine
+    with standard configuration and all required components.
+    
+    Args:
+        bm25_retriever (BM25Retriever): Configured BM25 retriever
+        faiss_retriever (FAISSRetriever): Configured FAISS retriever
+        reranker (CrossEncoderReranker): Configured reranker
+        
+    Returns:
+        EnhancedRetrievalEngine: Fully configured enhanced retrieval engine
+    """
     return EnhancedRetrievalEngine(
         bm25_retriever=bm25_retriever,
         faiss_retriever=faiss_retriever,
@@ -190,5 +279,5 @@ def create_enhanced_retrieval_engine(bm25_retriever: BM25Retriever,
 
 
 if __name__ == "__main__":
-    print("🧪 Test EnhancedRetrievalEngine")
-    print("✅ Module simplifié prêt à l'emploi")
+    print("Enhanced Retrieval Engine Test")
+    print("Simplified module ready for use")

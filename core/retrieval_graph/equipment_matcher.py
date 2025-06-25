@@ -1,7 +1,20 @@
 """
-Equipment Matcher - Version Ultra-Simple
-Matching LLM equipment avec equipments des KGs (cosine similarity)
-Path: core/retrieval_graph/equipment_matcher.py
+Equipment Matcher: LLM Equipment to Knowledge Graph Equipment Mapping
+
+This module provides sophisticated equipment matching capabilities for mapping
+LLM-extracted equipment names to standardized equipment identifiers in knowledge
+graphs. It implements multi-stage matching strategies including exact matching,
+partial string matching, and semantic similarity using cosine similarity calculations.
+
+Key components:
+- Multi-stage equipment matching with exact, partial, and semantic approaches
+- Configurable similarity thresholds with YAML configuration integration
+- Cosine similarity-based semantic matching using SentenceTransformer embeddings
+- Neo4j knowledge graph equipment extraction utilities
+- Comprehensive testing framework with multiple test scenarios
+
+Dependencies: sentence-transformers, sklearn, numpy, yaml, neo4j
+Usage: Import EquipmentMatcher for mapping LLM equipment names to KG equipment identifiers
 """
 
 import os
@@ -12,14 +25,34 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
 class EquipmentMatcher:
-    """Matcher simple pour equipment LLM → KG"""
+    """
+    Simple matcher for LLM equipment to knowledge graph equipment mapping.
+    
+    Implements hierarchical matching strategy starting with exact matches,
+    progressing through partial string matching, and concluding with
+    semantic similarity matching for robust equipment identification.
+    """
     
     def __init__(self):
+        """
+        Initialize equipment matcher with lazy model loading and threshold configuration.
+        
+        Sets up the matcher with deferred SentenceTransformer model loading
+        and configurable similarity threshold from YAML settings.
+        """
         self.model = None
         self.threshold = self._load_threshold()
     
     def _load_threshold(self) -> float:
-        """Charge le seuil depuis config"""
+        """
+        Load similarity threshold from configuration file.
+        
+        Reads the equipment matching similarity threshold from YAML configuration
+        with fallback to default value for robust operation.
+        
+        Returns:
+            float: Similarity threshold for equipment matching (default: 0.9)
+        """
         try:
             with open("config/settings.yaml", 'r') as f:
                 config = yaml.safe_load(f)
@@ -28,7 +61,15 @@ class EquipmentMatcher:
             return 0.9
     
     def _get_model(self):
-        """Lazy loading du modèle"""
+        """
+        Lazy loading of SentenceTransformer model for embedding generation.
+        
+        Initializes the embedding model on first use with configuration-based
+        model selection and fallback to default model for reliability.
+        
+        Returns:
+            SentenceTransformer: Embedding model for semantic similarity calculation
+        """
         if self.model is None:
             try:
                 with open("config/settings.yaml", 'r') as f:
@@ -41,36 +82,40 @@ class EquipmentMatcher:
     
     def match_equipment(self, llm_equipment: str, kg_equipments: List[str]) -> Optional[str]:
         """
-        Matche un equipment LLM avec les equipments du KG
+        Match LLM equipment with knowledge graph equipment using multi-stage approach.
+        
+        Implements hierarchical matching strategy: exact match, partial string match,
+        and semantic similarity match to find the best equipment correspondence
+        with configurable threshold validation.
         
         Args:
-            llm_equipment: Equipment extrait par LLM
-            kg_equipments: Liste equipments disponibles dans le KG
+            llm_equipment (str): Equipment name extracted by LLM
+            kg_equipments (List[str]): List of available equipment in knowledge graph
             
         Returns:
-            str: Equipment KG le plus proche si match > threshold, sinon None
+            Optional[str]: Best matching KG equipment if similarity exceeds threshold, None otherwise
         """
         if not llm_equipment or not kg_equipments:
             return None
         
-        # Nettoyage
+        # Cleaning
         llm_clean = llm_equipment.strip().lower()
         kg_clean = [eq.strip().lower() for eq in kg_equipments if eq]
         
         if not kg_clean:
             return None
         
-        # Match exact d'abord
+        # Exact match first
         if llm_clean in kg_clean:
             idx = kg_clean.index(llm_clean)
             return kg_equipments[idx]
         
-        # Match partiel simple
+        # Simple partial match
         for i, kg_eq in enumerate(kg_clean):
             if llm_clean in kg_eq or kg_eq in llm_clean:
                 return kg_equipments[i]
         
-        # Match sémantique
+        # Semantic match
         try:
             model = self._get_model()
             
@@ -87,17 +132,25 @@ class EquipmentMatcher:
                 return kg_equipments[max_idx]
             
         except Exception as e:
-            print(f"⚠️ Erreur equipment matching: {e}")
+            print(f"Warning: Equipment matching error: {e}")
         
         return None
     
     def get_best_matches(self, llm_equipment: str, kg_equipments: List[str], 
                         top_k: int = 3) -> List[Tuple[str, float]]:
         """
-        Retourne les top-k matches avec scores
+        Return top-k equipment matches with similarity scores.
         
+        Computes semantic similarity scores for all equipment candidates
+        and returns the highest scoring matches for analysis and validation.
+        
+        Args:
+            llm_equipment (str): Equipment name from LLM extraction
+            kg_equipments (List[str]): Available equipment in knowledge graph
+            top_k (int): Number of top matches to return
+            
         Returns:
-            List[Tuple[str, float]]: (equipment, score) triés par score décroissant
+            List[Tuple[str, float]]: Equipment matches with scores, sorted by descending score
         """
         if not llm_equipment or not kg_equipments:
             return []
@@ -110,12 +163,12 @@ class EquipmentMatcher:
             
             similarities = cosine_similarity(llm_embedding, kg_embeddings)[0]
             
-            # Tri par score décroissant
+            # Sort by descending score
             sorted_indices = np.argsort(similarities)[::-1]
             
             results = []
             for idx in sorted_indices[:top_k]:
-                if similarities[idx] >= 0.5:  # Seuil minimum pour affichage
+                if similarities[idx] >= 0.5:  # Minimum threshold for display
                     results.append((kg_equipments[idx], float(similarities[idx])))
             
             return results
@@ -124,27 +177,48 @@ class EquipmentMatcher:
             return []
 
 
-# === FONCTIONS UTILITAIRES ===
-
 def create_equipment_matcher() -> EquipmentMatcher:
-    """Crée un matcher equipment"""
+    """
+    Create equipment matcher instance for equipment mapping operations.
+    
+    Factory function for creating configured equipment matcher instances
+    with proper initialization and configuration loading.
+    
+    Returns:
+        EquipmentMatcher: Configured equipment matcher instance
+    """
     return EquipmentMatcher()
 
 def match_single_equipment(llm_equipment: str, kg_equipments: List[str]) -> Optional[str]:
-    """Fonction utilitaire pour match rapide"""
+    """
+    Utility function for quick single equipment matching.
+    
+    Convenience function for one-off equipment matching operations
+    without requiring explicit matcher instance management.
+    
+    Args:
+        llm_equipment (str): Equipment name to match
+        kg_equipments (List[str]): Available equipment options
+        
+    Returns:
+        Optional[str]: Best matching equipment or None
+    """
     matcher = create_equipment_matcher()
     return matcher.match_equipment(llm_equipment, kg_equipments)
 
 def extract_kg_equipments_from_neo4j(driver, kg_type: str = "dense") -> List[str]:
     """
-    Extrait tous les equipments uniques d'un KG Neo4j
+    Extract all unique equipment from Neo4j knowledge graph.
+    
+    Queries the knowledge graph database to retrieve all unique equipment
+    identifiers for use in equipment matching operations with error handling.
     
     Args:
-        driver: Driver Neo4j
-        kg_type: Type de KG ("dense", "sparse", "dense_sc")
+        driver: Neo4j database driver instance
+        kg_type (str): Type of knowledge graph ("dense", "sparse", "dense_sc")
         
     Returns:
-        List[str]: Equipments uniques du KG
+        List[str]: Unique equipment identifiers from knowledge graph
     """
     try:
         with driver.session() as session:
@@ -159,12 +233,18 @@ def extract_kg_equipments_from_neo4j(driver, kg_type: str = "dense") -> List[str
             return equipments
             
     except Exception as e:
-        print(f"⚠️ Erreur extraction equipments {kg_type}: {e}")
+        print(f"Warning: Equipment extraction error for {kg_type}: {e}")
         return []
 
 def test_equipment_matcher():
-    """Test simple du matcher"""
-    print("🧪 Test Equipment Matcher")
+    """
+    Simple test function for equipment matcher validation.
+    
+    Provides comprehensive testing of equipment matching functionality
+    with various test cases including exact matches, partial matches,
+    and semantic similarity scenarios.
+    """
+    print("Testing Equipment Matcher")
     
     matcher = create_equipment_matcher()
     

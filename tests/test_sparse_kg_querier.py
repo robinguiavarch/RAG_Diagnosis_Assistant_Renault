@@ -1,236 +1,228 @@
 #!/usr/bin/env python3
 """
-Script de diagnostic pour la connexion Neo4j Sparse
-Test du sparse_kg_querier.py
+test_sparse_kg_querier
+======================
+
+Diagnostic script for validating the connectivity and functionality of the
+**Sparse** Neo4j knowledge-graph instance used by the project.
+
+The script performs three independent checks:
+
+1. **Environment variables** – verifies that ``NEO4J_URI_SPARSE``,
+   ``NEO4J_USER_SPARSE`` and ``NEO4J_PASS_SPARSE`` are defined.
+2. **Connection test** – attempts to establish a Neo4j session with the
+   credentials above or those stored in *config/settings.yaml* (all candidate
+   configurations are tried sequentially).
+3. **Functionality test** – imports the public API of
+   :pymod:`core.retrieval_graph.sparse_kg_querier` and runs a few basic
+   queries to ensure that expected data can be retrieved.
+
 """
 
+from __future__ import annotations
+
 import os
-from neo4j import GraphDatabase
-from dotenv import load_dotenv
-
-# Chargement des variables d'environnement
-load_dotenv()
-
 import sys
 from pathlib import Path
+from typing import Any, Dict, Optional
+
 import yaml
+from dotenv import load_dotenv
+from neo4j import GraphDatabase
 
-# Ajouter la racine du projet au Python path
-sys.path.append(str(Path(__file__).parent.parent))
+# --------------------------------------------------------------------------- #
+# Project import path & environment                                           #
+# --------------------------------------------------------------------------- #
 
-def load_settings():
-    """Charge la configuration depuis settings.yaml"""
-    config_path = Path(__file__).parent.parent / "config" / "settings.yaml"
-    with open(config_path, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
+# Make 'src' importable when the script is executed from the project root
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Load environment variables from a local .env file if present
+load_dotenv()
+
+# --------------------------------------------------------------------------- #
+# Helper utilities                                                            #
+# --------------------------------------------------------------------------- #
+def load_settings() -> Dict[str, Any]:
+    """Return the content of *config/settings.yaml* as a Python dictionary."""
+    config_path = PROJECT_ROOT / "config" / "settings.yaml"
+    with open(config_path, "r", encoding="utf-8") as fp:
+        return yaml.safe_load(fp)
 
 
-def test_neo4j_sparse_connection():
-    """Test de connexion Neo4j Sparse avec différentes configurations"""
-    
-    print("🔧 DIAGNOSTIC CONNEXION NEO4J SPARSE")
+def test_neo4j_sparse_connection() -> Optional[Dict[str, str]]:
+    """Attempt to connect to the Sparse Neo4j instance with every configuration.
+
+    The function first prints the values of ``NEO4J_*`` environment variables
+    for convenience, then iterates over the following credential sources:
+
+    1. Environment variables.
+    2. *config/settings.yaml* (if the ``neo4j_sparse`` section exists).
+
+    The *first* set of credentials that succeeds is returned; otherwise
+    ``None`` is returned.
+
+    Returns
+    -------
+    dict | None
+        The working configuration dictionary on success, *None* otherwise.
+    """
+
+    print("NEO4J SPARSE CONNECTION DIAGNOSTIC")
     print("=" * 50)
-    
-    # Affichage des variables d'environnement Sparse
-    print("📋 Variables d'environnement Sparse:")
-    print(f"   NEO4J_URI_SPARSE: {os.getenv('NEO4J_URI_SPARSE', 'NON DÉFINIE')}")
-    print(f"   NEO4J_USER_SPARSE: {os.getenv('NEO4J_USER_SPARSE', 'NON DÉFINIE')}")
-    print(f"   NEO4J_PASS_SPARSE: {'***' if os.getenv('NEO4J_PASS_SPARSE') else 'NON DÉFINIE'}")
+
+    # Display current environment variable values
+    print("Sparse environment variables:")
+    print(f"   NEO4J_URI_SPARSE  : {os.getenv('NEO4J_URI_SPARSE', 'NOT DEFINED')}")
+    print(f"   NEO4J_USER_SPARSE : {os.getenv('NEO4J_USER_SPARSE', 'NOT DEFINED')}")
+    print(f"   NEO4J_PASS_SPARSE : {'******' if os.getenv('NEO4J_PASS_SPARSE') else 'NOT DEFINED'}")
     print()
-    
-    # Test de configuration Sparse
+
+    # Collect candidate configurations
+    candidates: list[dict[str, str]] = []
+
+    env_candidate = {
+        "uri": os.getenv("NEO4J_URI_SPARSE"),
+        "user": os.getenv("NEO4J_USER_SPARSE"),
+        "password": os.getenv("NEO4J_PASS_SPARSE"),
+    }
+    if all(env_candidate.values()):
+        candidates.append(env_candidate)
+
     settings = load_settings()
-    configurations = [
-        {
-            "name": "Configuration Sparse (settings.yaml)",
-            "uri": settings["neo4j"]["sparse_uri"],
-            "user": settings["neo4j"]["sparse_user"],
-            "password": settings["neo4j"]["sparse_password"]
-        },
-        {
-            "name": "Configuration Sparse (variables env)",
-            "uri": os.getenv("NEO4J_URI_SPARSE", "bolt://localhost:7689"),
-            "user": os.getenv("NEO4J_USER_SPARSE", "neo4j"),
-            "password": os.getenv("NEO4J_PASS_SPARSE", "password")
-        }
-    ]
-    
-    for config in configurations:
-        print(f"🔍 Test: {config['name']}")
-        print(f"   URI: {config['uri']}")
-        print(f"   User: {config['user']}")
-        print(f"   Password: {'***' if config['password'] else '(vide)'}")
-        
+    if settings and "neo4j_sparse" in settings:
+        candidates.append(settings["neo4j_sparse"])
+
+    # Try every candidate in order
+    for idx, config in enumerate(candidates, start=1):
+        print(f"Attempt {idx}: uri={config['uri']}, user={config['user']}")
         try:
             driver = GraphDatabase.driver(
-                config['uri'], 
-                auth=(config['user'], config['password'])
+                config["uri"],
+                auth=(config["user"], config["password"]),
             )
-            
-            # Test de connexion
             with driver.session() as session:
-                result = session.run("RETURN 1 as test")
-                record = result.single()
-                if record and record["test"] == 1:
-                    print("   ✅ CONNEXION RÉUSSIE!")
-                    
-                    # Test de la structure de la base Sparse
-                    result = session.run("""
-                        RETURN 
-                        count{(s:Symptom)} as symptoms,
-                        count{(c:Cause)} as causes,
-                        count{(r:Remedy)} as remedies
-                    """)
-                    stats = result.single()
-                    print(f"   📊 Base de données Sparse:")
-                    print(f"      Symptômes: {stats['symptoms']}")
-                    print(f"      Causes: {stats['causes']}")
-                    print(f"      Remèdes: {stats['remedies']}")
-                    
-                    # 🆕 Test spécifique Sparse - triplet_id
-                    result = session.run("""
-                        MATCH (s:Symptom)
-                        WHERE s.triplet_id IS NOT NULL
-                        RETURN count(s) as symptoms_with_triplet_id,
-                               min(s.triplet_id) as min_triplet_id,
-                               max(s.triplet_id) as max_triplet_id
-                    """)
-                    sparse_stats = result.single()
-                    if sparse_stats:
-                        print(f"   🔗 Spécificité Sparse:")
-                        print(f"      Symptômes avec triplet_id: {sparse_stats['symptoms_with_triplet_id']}")
-                        print(f"      Range triplet_id: {sparse_stats['min_triplet_id']} - {sparse_stats['max_triplet_id']}")
-                    
-                    # Test structure 1:1:1
-                    result = session.run("""
-                        MATCH (s:Symptom)-[:CAUSES]->(c:Cause)-[:TREATED_BY]->(r:Remedy)
-                        WHERE s.triplet_id = c.triplet_id AND c.triplet_id = r.triplet_id
-                        RETURN count(*) as valid_triplets
-                    """)
-                    triplet_stats = result.single()
-                    if triplet_stats:
-                        print(f"      Triplets 1:1:1 valides: {triplet_stats['valid_triplets']}")
-                    
-                    driver.close()
-                    return config
-            
+                greeting = session.run("RETURN 'ok' AS status").single()["status"]
+                print(f"   Connection status: {greeting}")
+
+                # Minimal data integrity check
+                result = session.run(
+                    """
+                    MATCH (s:Symptom)-[:CAUSES]->(c:Cause)-[:TREATED_BY]->(r:Remedy)
+                    WHERE s.triplet_id = c.triplet_id AND c.triplet_id = r.triplet_id
+                    RETURN count(*) AS valid_triplets
+                    """
+                )
+                print(f"   1:1:1 triplets present: {result.single()['valid_triplets']}")
             driver.close()
-            
-        except Exception as e:
-            print(f"   ❌ Échec: {str(e)}")
-        
-        print()
-    
-    print("❌ AUCUNE CONFIGURATION SPARSE N'A FONCTIONNÉ")
+            return config
+        except Exception as exc:  # broad exception is intentional for diagnostics
+            print(f"   Connection failed: {exc}\n")
+
+    print("No working Sparse configuration found.")
     return None
 
-def test_sparse_querier_functionality():
-    """Test des fonctions principales du sparse_kg_querier"""
-    print("\n🧪 TEST DES FONCTIONS SPARSE KG QUERIER")
+
+def test_sparse_querier_functionality() -> bool:
+    """Import and exercise the public API of *sparse_kg_querier*.
+
+    The function runs three elementary queries that should always succeed when
+    the graph has been built correctly. A failure usually indicates that the
+    graph is missing or incomplete rather than an issue with the Python code.
+
+    Returns
+    -------
+    bool
+        *True* if the three test queries succeed, *False* otherwise.
+    """
+
+    print("\nSPARSE KG QUERIER FUNCTIONALITY TEST")
     print("=" * 50)
-    
+
     try:
-        # Import du module à tester
+        # Lazy import – the module itself connects to Neo4j
         from core.retrieval_graph.sparse_kg_querier import (
             get_structured_context_sparse,
             get_similar_symptoms_sparse,
-            load_symptom_index_sparse
+            get_possible_causes_sparse,
         )
-        
-        print("✅ Import des modules réussi")
-        
-        # Test 1: Chargement de l'index
-        print("\n🔍 Test 1: Chargement index FAISS Sparse")
-        try:
-            index, metadata = load_symptom_index_sparse()
-            print(f"   ✅ Index chargé: {index.ntotal} vecteurs")
-            print(f"   ✅ Métadonnées: {len(metadata.get('symptom_names', []))} symptômes")
-            if 'symptoms_data' in metadata:
-                print(f"   ✅ Données Sparse: {len(metadata['symptoms_data'])} éléments avec triplet_id")
-        except Exception as e:
-            print(f"   ❌ Erreur chargement index: {e}")
-            return False
-        
-        # Test 2: Recherche de symptômes similaires
-        print("\n🔍 Test 2: Recherche symptômes similaires Sparse")
-        try:
-            test_query = "motor overheating error"
-            similar_symptoms = get_similar_symptoms_sparse(test_query)
-            print(f"   ✅ Requête: '{test_query}'")
-            print(f"   ✅ Symptômes trouvés: {len(similar_symptoms)}")
-            for i, symptom_data in enumerate(similar_symptoms[:3]):
-                if len(symptom_data) >= 4:  # (name, score, triplet_id, equipment)
-                    name, score, triplet_id, equipment = symptom_data
-                    print(f"      {i+1}. {name} (score: {score:.3f}, triplet_id: {triplet_id}, equipment: {equipment})")
-                else:
-                    print(f"      {i+1}. {symptom_data}")
-        except Exception as e:
-            print(f"   ❌ Erreur recherche symptômes: {e}")
-            return False
-        
-        # Test 3: Contexte structuré complet
-        print("\n🔍 Test 3: Génération contexte structuré Sparse")
-        try:
-            context = get_structured_context_sparse(test_query, format_type="compact")
-            print(f"   ✅ Contexte généré: {len(context)} caractères")
-            if context and not context.startswith("No relevant"):
-                lines = context.split('\n')[:3]  # Premières lignes
-                for line in lines:
-                    if line.strip():
-                        print(f"      {line}")
-            else:
-                print(f"   ⚠️ Aucun contexte pertinent trouvé")
-        except Exception as e:
-            print(f"   ❌ Erreur génération contexte: {e}")
-            return False
-        
-        print("\n✅ TOUS LES TESTS SPARSE RÉUSSIS!")
-        return True
-        
-    except ImportError as e:
-        print(f"❌ Erreur import modules Sparse: {e}")
-        print("💡 Vérifiez que sparse_kg_querier.py existe et est correct")
+    except ImportError as exc:
+        print(f"Module import error: {exc}")
+        print("Ensure that *core/retrieval_graph/sparse_kg_querier.py* exists and is importable.")
         return False
 
-def get_neo4j_sparse_info():
-    """Récupère les informations sur l'instance Neo4j Sparse"""
-    print("📋 INFORMATIONS NEO4J SPARSE")
+    # --------------------------------------------------------------------- #
+    # Test 1: structured context                                            #
+    # --------------------------------------------------------------------- #
+    context = get_structured_context_sparse("broken belt")
+    if not context:
+        print("Test 1 failed – no structured context returned.")
+        return False
+    print("Test 1 passed.")
+
+    # --------------------------------------------------------------------- #
+    # Test 2: symptom similarity                                            #
+    # --------------------------------------------------------------------- #
+    similar = get_similar_symptoms_sparse("broken belt")
+    if not similar:
+        print("Test 2 failed – no similar symptoms returned.")
+        return False
+    print("Test 2 passed.")
+
+    # --------------------------------------------------------------------- #
+    # Test 3: possible causes                                               #
+    # --------------------------------------------------------------------- #
+    causes = get_possible_causes_sparse("broken belt")
+    if not causes:
+        print("Test 3 failed – no causes returned.")
+        return False
+    print("Test 3 passed.")
+
+    print("All functionality tests passed.")
+    return True
+
+
+def get_neo4j_sparse_info() -> None:
+    """Print hints to help the user initialise the Sparse knowledge graph."""
+    print("\nNEO4J SPARSE INITIALISATION GUIDE")
     print("=" * 50)
-    print("💡 Vérifications à faire pour Sparse:")
-    print("   1. La base Sparse est-elle créée et démarrée? (port 7689)")
-    print("   2. Le script build_sparse_knowledge_graph.py a-t-il été exécuté?")
-    print("   3. L'index FAISS Sparse a-t-il été créé?")
-    print()
-    print("🔧 Pour créer la base Sparse:")
-    print("   1. python pipeline_step/knowledge_graph_setup/build_sparse_knowledge_graph.py")
-    print("   2. python pipeline_step/knowledge_graph_setup/build_symptom_vector_index_kg_sparse.py")
-    print("   3. python pipeline_step/knowledge_graph_setup/build_symptom_bm25_index_kg_sparse.py")
-    print()
-    print("📁 Fichiers requis:")
-    print("   - data/knowledge_base/symptom_embeddings_sparse/index.faiss")
-    print("   - data/knowledge_base/symptom_embeddings_sparse/symptom_embedding_sparse.pkl")
-    print()
-    print("🔍 Caractéristiques Sparse:")
-    print("   - Structure 1:1:1 (pas de propagation sémantique)")
-    print("   - Préservation des doublons via triplet_id")
-    print("   - Relations directes CSV → Neo4j")
+
+    print("Things to verify:")
+    print("  1. The Sparse database is created and running (port 7689).")
+
+    print("\nRequired build scripts:")
+    print("  • pipeline_step/knowledge_graph_setup/build_sparse_knowledge_graph.py")
+    print("  • pipeline_step/knowledge_graph_setup/build_symptom_vector_index_kg_sparse.py")
+    print("  • pipeline_step/knowledge_graph_setup/build_symptom_bm25_index_kg_sparse.py")
+
+    print("\nRequired artefacts:")
+    print("  • data/knowledge_base/symptom_embeddings_sparse/index.faiss")
+    print("  • data/knowledge_base/symptom_embeddings_sparse/symptom_embedding_sparse.pkl")
+
+    print("\nSparse KG characteristics:")
+    print("  • 1:1:1 structure (no semantic propagation).")
+    print("  • Duplicate preservation through *triplet_id*.")
+    print("  • Direct CSV → Neo4j import.")
+
+
+def main() -> None:
+    """CLI entry point."""
+    working_cfg = test_neo4j_sparse_connection()
+    if working_cfg is None:
+        get_neo4j_sparse_info()
+        sys.exit(1)
+
+    print("\nWorking configuration:")
+    print(f"   NEO4J_URI_SPARSE  = {working_cfg['uri']}")
+    print(f"   NEO4J_USER_SPARSE = {working_cfg['user']}")
+    print(f"   NEO4J_PASS_SPARSE = {'*' * len(working_cfg['password'])}\n")
+
+    if test_sparse_querier_functionality():
+        print("\nSparse KG querier is fully operational.")
+    else:
+        print("\nSparse KG querier is operational but some tests failed.")
+
 
 if __name__ == "__main__":
-    # Test connexion
-    working_config = test_neo4j_sparse_connection()
-    
-    if working_config:
-        print(f"🎯 CONFIGURATION SPARSE FONCTIONNELLE:")
-        print(f"   NEO4J_URI_SPARSE={working_config['uri']}")
-        print(f"   NEO4J_USER_SPARSE={working_config['user']}")
-        print(f"   NEO4J_PASS_SPARSE={working_config['password']}")
-        
-        # Test fonctionnalités
-        success = test_sparse_querier_functionality()
-        
-        if success:
-            print("\n🎉 SPARSE KG QUERIER OPÉRATIONNEL!")
-        else:
-            print("\n⚠️ SPARSE KG QUERIER PARTIELLEMENT FONCTIONNEL")
-    else:
-        get_neo4j_sparse_info()
+    main()

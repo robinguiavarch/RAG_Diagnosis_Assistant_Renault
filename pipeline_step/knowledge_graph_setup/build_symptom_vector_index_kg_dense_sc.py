@@ -1,15 +1,21 @@
 """
-Construction index FAISS pour Knowledge Graph Dense S&C avec connexion Cloud/Local
-Index basé sur les textes combinés symptôme + cause
-Pour lancer:
-docker run --rm \
-  -v $(pwd)/.env:/app/.env \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/pipeline_step:/app/pipeline_step \
-  --network host \
-  diagnosis-app \
-  poetry run python pipeline_step/knowledge_graph_setup/build_symptom_vector_index_kg_dense_sc.py
+FAISS Vector Index Construction for Dense S&C Knowledge Graph
+
+This module constructs a FAISS semantic search index specifically for the Dense Symptom & Cause
+Knowledge Graph configuration. The index is built using combined symptom and cause texts,
+providing enhanced semantic search capabilities for the hybrid metric system with enriched
+contextual understanding.
+
+Key components:
+- Dense S&C vector extraction: Retrieval and embedding of combined symptom+cause texts
+- FAISS index construction: High-performance semantic indexing with normalized embeddings
+- Cloud/local connection management: Intelligent fallback system for database connectivity
+- Metadata preservation: Comprehensive storage of indexing metadata and statistics
+
+Dependencies: neo4j, faiss-cpu, sentence-transformers, numpy, pickle, pyyaml, python-dotenv
+Usage: docker run --rm -v $(pwd)/.env:/app/.env -v $(pwd)/data:/app/data 
+       -v $(pwd)/config:/app/config -v $(pwd)/pipeline_step:/app/pipeline_step 
+       --network host diagnosis-app poetry run python pipeline_step/knowledge_graph_setup/build_symptom_vector_index_kg_dense_sc.py
 """
 
 import os
@@ -24,7 +30,12 @@ import yaml
 load_dotenv()
 
 def load_settings():
-    """Charge la configuration depuis settings.yaml"""
+    """
+    Load system configuration from settings.yaml file
+    
+    Returns:
+        dict: Loaded configuration settings
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(script_dir, "..", "..", "config", "settings.yaml")
     with open(config_path, 'r', encoding='utf-8') as file:
@@ -32,16 +43,24 @@ def load_settings():
 
 def get_neo4j_connection(kg_type="dense_sc"):
     """
-    🌐 Connexion intelligente Cloud/Local
-    kg_type: "dense", "sparse", ou "dense_sc"
+    Establish intelligent Cloud/Local Neo4j connection
+    
+    Implements cloud-first connection strategy with automatic local fallback.
+    Supports multiple Knowledge Graph types with appropriate credential selection.
+    
+    Args:
+        kg_type (str): Knowledge Graph type ("dense", "sparse", or "dense_sc")
+        
+    Returns:
+        neo4j.Driver: Configured Neo4j database driver
     """
     load_dotenv()
     
-    # Priorité au Cloud si activé
+    # Priority to Cloud if enabled
     cloud_enabled = os.getenv("NEO4J_CLOUD_ENABLED", "false").lower() == "true"
     
     if cloud_enabled:
-        print(f"🌐 MODE CLOUD pour {kg_type.upper()}")
+        print(f"CLOUD MODE for {kg_type.upper()}")
         
         if kg_type == "dense":
             uri = os.getenv("NEO4J_DENSE_CLOUD_URI")
@@ -54,14 +73,14 @@ def get_neo4j_connection(kg_type="dense_sc"):
             password = os.getenv("NEO4J_DENSE_SC_CLOUD_PASS")
         
         if uri and password:
-            print(f"🔌 Connexion Cloud {kg_type}: {uri}")
+            print(f"Cloud connection {kg_type}: {uri}")
             return GraphDatabase.driver(uri, auth=("neo4j", password))
         else:
-            print(f"❌ Credentials cloud manquants pour {kg_type}")
+            print(f"Missing cloud credentials for {kg_type}")
             cloud_enabled = False
     
-    # Fallback Local
-    print(f"🏠 MODE LOCAL pour {kg_type.upper()}")
+    # Local fallback
+    print(f"LOCAL MODE for {kg_type.upper()}")
     
     if kg_type == "dense":
         uri = os.getenv("NEO4J_URI_DENSE", "bolt://host.docker.internal:7687")
@@ -76,38 +95,51 @@ def get_neo4j_connection(kg_type="dense_sc"):
         user = os.getenv("NEO4J_USER_DENSE_SC", "neo4j")
         password = os.getenv("NEO4J_PASS_DENSE_SC", "password")
     
-    print(f"🔌 Connexion Local {kg_type}: {uri}")
+    print(f"Local connection {kg_type}: {uri}")
     return GraphDatabase.driver(uri, auth=(user, password))
 
 def build_symptom_index_dense_sc():
     """
-    Construit l'index FAISS pour les symptômes Dense S&C
-    Sauvegarde dans data/knowledge_base/symptom_embeddings_dense_s&c/
-    """
-    print("🚀 Construction de l'index FAISS pour Dense S&C (Symptôme + Cause)...")
+    Construct FAISS index for Dense S&C symptoms
     
-    # === CONFIGURATION ===
+    Creates a high-performance semantic search index using combined symptom and cause
+    texts from the Dense S&C Knowledge Graph. The index utilizes normalized embeddings
+    and Inner Product similarity for optimal search performance in the hybrid metric system.
+    
+    The function performs the following operations:
+    1. Extracts symptoms with combined text from Dense S&C KG
+    2. Generates normalized embeddings using SentenceTransformer
+    3. Constructs FAISS IndexFlatIP for semantic similarity
+    4. Saves index and comprehensive metadata
+    
+    Raises:
+        ValueError: When no S&C symptoms are found in the Knowledge Graph
+        Exception: For database connection or index construction errors
+    """
+    print("Constructing FAISS index for Dense S&C (Symptom + Cause)...")
+    
+    # Configuration
     config = load_settings()
     
-    # 🆕 CONNEXION CLOUD/LOCAL INTELLIGENTE
+    # Intelligent Cloud/Local connection
     driver = get_neo4j_connection("dense_sc")
     
-    # Modèle d'embedding
+    # Embedding model
     model_name = config["models"]["embedding_model"]
-    print(f"📦 Chargement du modèle : {model_name}")
+    print(f"Loading model: {model_name}")
     
-    # Chemin de sortie pour les embeddings Dense S&C
+    # Output path for Dense S&C embeddings
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(script_dir, "..", "..", "data", "knowledge_base", "symptom_embeddings_dense_s&c")
 
     try:
-        # Test de connexion
+        # Connection test
         with driver.session() as test_session:
             test_session.run("RETURN 1")
-        print("✅ Connexion Neo4j Dense S&C réussie")
+        print("Neo4j Dense S&C connection successful")
         
-        # === EXTRACTION DES DONNÉES S&C ===
-        print("📊 Extraction des symptômes avec texte combiné...")
+        # S&C data extraction
+        print("Extracting symptoms with combined text...")
         with driver.session() as session:
             result = session.run("""
                 MATCH (s:Symptom)
@@ -126,121 +158,128 @@ def build_symptom_index_dense_sc():
                     'equipment': record["equipment"] or 'unknown'
                 })
         
-        print(f"✅ {len(symptoms_data)} symptômes S&C extraits")
+        print(f"Extracted {len(symptoms_data)} S&C symptoms")
         
         if not symptoms_data:
-            raise ValueError("❌ Aucun symptôme S&C trouvé dans la Knowledge Base!")
+            raise ValueError("No S&C symptoms found in the Knowledge Base")
         
-        # Extraction des textes pour embedding
+        # Text extraction for embedding
         symptom_names = [s['symptom_name'] for s in symptoms_data]
         combined_texts = [s['combined_text'] for s in symptoms_data]
         
-        print(f"📝 Exemples de textes combinés :")
+        print(f"Examples of combined texts:")
         for i, text in enumerate(combined_texts[:3]):
             print(f"   {i+1}. {text}")
         
-        # === GÉNÉRATION DES EMBEDDINGS S&C ===
-        print("🧠 Génération des embeddings avec textes combinés...")
+        # S&C embedding generation
+        print("Generating embeddings with combined texts...")
         model = SentenceTransformer(model_name)
         
-        # 🆕 EMBEDDING DES TEXTES COMBINÉS (symptôme + cause)
+        # Embedding combined texts (symptom + cause)
         embeddings = model.encode(
-            combined_texts,  # Utilise les textes combinés, pas seulement les symptômes
+            combined_texts,  # Uses combined texts, not just symptoms
             show_progress_bar=True, 
             normalize_embeddings=True,
             convert_to_numpy=True
         )
         
-        print(f"✅ Embeddings S&C générés : {embeddings.shape}")
+        print(f"S&C embeddings generated: {embeddings.shape}")
         
-        # === CONSTRUCTION DE L'INDEX FAISS ===
-        print("🔧 Construction de l'index FAISS S&C...")
+        # FAISS index construction
+        print("Constructing FAISS S&C index...")
         dim = embeddings.shape[1]
-        index = faiss.IndexFlatIP(dim)  # Inner Product pour embeddings normalisés
+        index = faiss.IndexFlatIP(dim)  # Inner Product for normalized embeddings
         index.add(embeddings.astype('float32'))
         
-        print(f"✅ Index FAISS S&C créé avec {index.ntotal} vecteurs de dimension {dim}")
+        print(f"FAISS S&C index created with {index.ntotal} vectors of dimension {dim}")
         
-        # === SAUVEGARDE ===
-        print(f"💾 Sauvegarde dans : {output_dir}")
+        # Save operations
+        print(f"Saving to: {output_dir}")
         os.makedirs(output_dir, exist_ok=True)
         
-        # Sauvegarde de l'index FAISS
+        # FAISS index save
         index_path = os.path.join(output_dir, "index.faiss")
         faiss.write_index(index, index_path)
-        print(f"✅ Index FAISS sauvegardé : {index_path}")
+        print(f"FAISS index saved: {index_path}")
         
-        # 🆕 Sauvegarde des métadonnées enrichies S&C
+        # Enhanced S&C metadata save
         metadata_path = os.path.join(output_dir, "symptom_embedding_dense_s&c.pkl")
         metadata = {
             'symptom_names': symptom_names,
-            'combined_texts': combined_texts,  # 🆕 Textes combinés
-            'symptoms_data': symptoms_data,    # 🆕 Données complètes
+            'combined_texts': combined_texts,  # Combined texts
+            'symptoms_data': symptoms_data,    # Complete data
             'model_name': model_name,
             'embedding_dim': dim,
             'total_symptoms': len(symptom_names),
             'source': 'knowledge_base_dense_s&c',
-            'indexing_method': 'symptom_plus_cause_combined',  # 🆕 Méthode d'indexation
+            'indexing_method': 'symptom_plus_cause_combined',  # Indexing method
             'connection_mode': 'cloud' if os.getenv("NEO4J_CLOUD_ENABLED", "false").lower() == "true" else 'local'
         }
         
         with open(metadata_path, "wb") as f:
             pickle.dump(metadata, f)
-        print(f"✅ Métadonnées S&C sauvegardées : {metadata_path}")
+        print(f"S&C metadata saved: {metadata_path}")
         
-        # === STATISTIQUES FINALES ===
+        # Final statistics
         unique_symptoms = len(set(symptom_names))
         unique_equipments = set(s['equipment'] for s in symptoms_data)
         
-        print("\n📈 STATISTIQUES DE L'INDEX DENSE S&C :")
-        print(f"   • Symptômes indexés : {len(symptom_names)}")
-        print(f"   • Symptômes uniques : {unique_symptoms}")
-        print(f"   • Méthode : Symptôme + Cause combinés")
-        print(f"   • Dimension des embeddings : {dim}")
-        print(f"   • Modèle utilisé : {model_name}")
-        print(f"   • Source : Knowledge Base Dense S&C")
-        print(f"   • Mode connexion : {metadata['connection_mode'].upper()}")
-        print(f"   • Taille index FAISS : {os.path.getsize(index_path) / 1024 / 1024:.2f} MB")
+        print("\nDENSE S&C INDEX STATISTICS:")
+        print(f"   Indexed symptoms: {len(symptom_names)}")
+        print(f"   Unique symptoms: {unique_symptoms}")
+        print(f"   Method: Symptom + Cause combined")
+        print(f"   Embedding dimension: {dim}")
+        print(f"   Model used: {model_name}")
+        print(f"   Source: Knowledge Base Dense S&C")
+        print(f"   Connection mode: {metadata['connection_mode'].upper()}")
+        print(f"   FAISS index size: {os.path.getsize(index_path) / 1024 / 1024:.2f} MB")
         
-        # Equipements couverts
-        print(f"   • Équipements couverts : {len(unique_equipments)}")
+        # Equipment coverage
+        print(f"   Equipment types covered: {len(unique_equipments)}")
         for eq in sorted(unique_equipments):
             count = sum(1 for s in symptoms_data if s['equipment'] == eq)
-            print(f"     - {eq}: {count} symptômes")
+            print(f"     - {eq}: {count} symptoms")
         
-        print(f"\n📁 Fichiers générés :")
+        print(f"\nGenerated files:")
         print(f"     - {index_path}")
         print(f"     - {metadata_path}")
         
-        print("\n🎯 UTILISATION :")
-        print("   Cet index peut maintenant être utilisé pour la recherche vectorielle")
-        print("   enrichie par symptôme + cause dans le pipeline RAG Dense S&C.")
-        print("   La recherche sera plus contextuelle grâce à l'enrichissement sémantique.")
+        print("\nUSAGE:")
+        print("   This index can now be used for enhanced vector search")
+        print("   with symptom + cause context in the Dense S&C RAG pipeline.")
+        print("   Search will be more contextual through semantic enrichment.")
         
     except Exception as e:
-        print(f"❌ ERREUR lors de la construction de l'index S&C : {str(e)}")
+        print(f"Error during S&C index construction: {str(e)}")
         raise
     finally:
         driver.close()
-        print("🔌 Connexion Neo4j fermée")
+        print("Neo4j connection closed")
 
 def main():
-    """Pipeline principal de construction de l'index FAISS Dense S&C"""
-    print("🚀 DÉMARRAGE DE LA CONSTRUCTION DE L'INDEX FAISS DENSE S&C")
+    """
+    Main pipeline for Dense S&C FAISS index construction
+    
+    Orchestrates the complete process of extracting combined symptom and cause texts
+    from the Dense S&C Knowledge Graph and constructing the corresponding FAISS
+    semantic search index. Provides comprehensive error handling and detailed
+    progress reporting throughout the construction process.
+    """
+    print("DENSE S&C FAISS INDEX CONSTRUCTION STARTUP")
     print("=" * 70)
-    print("📝 Objectif : Index vectoriel Symptôme + Cause combinés")
-    print("🌐 Support : Cloud/Local automatique")
-    print("🎯 Sortie : data/knowledge_base/symptom_embeddings_dense_s&c/")
+    print("Objective: Symptom + Cause combined vector index")
+    print("Support: Automatic Cloud/Local connection")
+    print("Output: data/knowledge_base/symptom_embeddings_dense_s&c/")
     print()
     
     try:
         build_symptom_index_dense_sc()
-        print("\n✅ CONSTRUCTION DE L'INDEX FAISS DENSE S&C TERMINÉE !")
+        print("\nDENSE S&C FAISS INDEX CONSTRUCTION COMPLETED")
         
     except FileNotFoundError as e:
-        print(f"❌ ERREUR : Fichier de configuration manquant : {str(e)}")
+        print(f"ERROR: Missing configuration file: {str(e)}")
     except Exception as e:
-        print(f"❌ ERREUR INATTENDUE : {str(e)}")
+        print(f"UNEXPECTED ERROR: {str(e)}")
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,20 @@
 """
-Parser simple pour les réponses JSON du LLM de préprocessing
-Focus sur l'essentiel - extraction et validation minimale
+Response Parser: Structured LLM Response Processing and Validation
+
+This module provides comprehensive parsing capabilities for LLM preprocessing responses
+in the RAG diagnosis system. It extracts and validates technical information from JSON
+responses, creating structured data objects for downstream processing with robust error
+handling and fallback mechanisms.
+
+Key components:
+- JSON extraction from LLM responses with multiple pattern matching strategies
+- Structured data validation and object construction for technical analysis
+- Comprehensive fallback mechanisms for parsing failures
+- Technical term categorization and equipment information extraction
+- Query variant processing and deduplication capabilities
+
+Dependencies: json, re, dataclasses, typing
+Usage: Import ResponseParser for structured LLM response processing and validation
 """
 
 import json
@@ -11,7 +25,7 @@ from dataclasses import dataclass
 
 @dataclass
 class TechnicalTerms:
-    """Termes techniques extraits"""
+    """Container for extracted technical terminology and identifiers"""
     error_codes: List[str]
     components: List[str]
     equipment_models: List[str]
@@ -20,7 +34,7 @@ class TechnicalTerms:
 
 @dataclass
 class EquipmentInfo:
-    """Informations d'équipement"""
+    """Structured equipment information with hierarchical classification"""
     primary_equipment: str
     equipment_type: str
     manufacturer: str
@@ -29,7 +43,7 @@ class EquipmentInfo:
 
 @dataclass
 class ProcessedQuery:
-    """Requête traitée complète"""
+    """Complete processed query structure with technical analysis"""
     raw_query: str
     technical_terms: TechnicalTerms
     equipment_info: EquipmentInfo
@@ -38,64 +52,112 @@ class ProcessedQuery:
     confidence_score: float = 0.0
     
     def get_primary_query(self) -> str:
-        """Retourne la requête principale (filtrée si disponible, sinon brute)"""
+        """
+        Return primary query for processing.
+        
+        Provides the filtered query if available, otherwise returns the raw query
+        for consistent downstream processing.
+        
+        Returns:
+            str: Primary query text (filtered or raw)
+        """
         return self.filtered_query if self.filtered_query else self.raw_query
     
     def get_all_queries(self) -> List[str]:
-        """Retourne toutes les variantes de requête"""
+        """
+        Return all query variants with deduplication.
+        
+        Combines the primary query with all variants, removing duplicates
+        to provide comprehensive query coverage for retrieval.
+        
+        Returns:
+            List[str]: Deduplicated list of all query variants
+        """
         queries = [self.get_primary_query()]
         queries.extend(self.query_variants)
-        return list(set(queries))  # Déduplication
+        return list(set(queries))  # Deduplication
 
 
 class ResponseParser:
-    """Parser simple pour les réponses LLM"""
+    """Simple parser for LLM preprocessing responses with robust error handling"""
     
     def parse_llm_response(self, llm_response: str, raw_query: str) -> ProcessedQuery:
         """
-        Parse la réponse LLM en ProcessedQuery
+        Parse LLM response into structured ProcessedQuery object.
+        
+        Extracts JSON data from LLM response and constructs a structured query
+        object with technical analysis, equipment information, and query variants.
         
         Args:
-            llm_response: Réponse brute du LLM
-            raw_query: Requête utilisateur originale
+            llm_response (str): Raw LLM response containing JSON data
+            raw_query (str): Original user query for fallback reference
             
         Returns:
-            ProcessedQuery: Objet structuré
+            ProcessedQuery: Structured query analysis object
+            
+        Raises:
+            Exception: If parsing fails, returns fallback result instead of raising
         """
         try:
-            # Extraction du JSON
+            # JSON extraction
             parsed_json = self._extract_json(llm_response)
             
-            # Construction de l'objet
+            # Object construction
             return self._build_processed_query(parsed_json, raw_query)
             
         except Exception as e:
-            # Fallback simple en cas d'échec
+            # Simple fallback on failure
             return self._create_fallback_result(raw_query, str(e))
     
     def _extract_json(self, response: str) -> Dict[str, Any]:
-        """Extrait le JSON de la réponse LLM"""
-        # Recherche du bloc JSON
+        """
+        Extract JSON data from LLM response using multiple strategies.
+        
+        Attempts to locate and parse JSON content using code block patterns
+        and direct JSON detection with comprehensive error handling.
+        
+        Args:
+            response (str): Raw LLM response text
+            
+        Returns:
+            Dict[str, Any]: Parsed JSON data
+            
+        Raises:
+            Exception: If no valid JSON can be extracted
+        """
+        # Search for JSON block
         json_pattern = r'```json\s*(\{.*?\})\s*```'
         json_match = re.search(json_pattern, response, re.DOTALL | re.IGNORECASE)
         
         if json_match:
             json_str = json_match.group(1)
         else:
-            # Fallback: chercher un JSON direct
+            # Fallback: search for direct JSON
             json_pattern = r'(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})'
             json_match = re.search(json_pattern, response, re.DOTALL)
             
             if json_match:
                 json_str = json_match.group(1)
             else:
-                raise Exception("Aucun JSON trouvé dans la réponse")
+                raise Exception("No JSON found in response")
         
         return json.loads(json_str)
     
     def _build_processed_query(self, data: Dict[str, Any], raw_query: str) -> ProcessedQuery:
-        """Construit ProcessedQuery à partir des données JSON"""
-        # Valeurs par défaut si champs manquants
+        """
+        Construct ProcessedQuery from parsed JSON data.
+        
+        Builds structured query object with technical analysis, handling missing
+        fields gracefully with appropriate defaults.
+        
+        Args:
+            data (Dict[str, Any]): Parsed JSON data from LLM response
+            raw_query (str): Original user query
+            
+        Returns:
+            ProcessedQuery: Complete structured query object
+        """
+        # Default values for missing fields
         tech_terms_data = data.get("technical_terms", {})
         equipment_data = data.get("equipment_info", {})
         
@@ -123,7 +185,19 @@ class ResponseParser:
         )
     
     def _create_fallback_result(self, raw_query: str, error_msg: str) -> ProcessedQuery:
-        """Crée un résultat de fallback minimal"""
+        """
+        Create minimal fallback result for parsing failures.
+        
+        Generates a basic ProcessedQuery structure when parsing fails,
+        ensuring system continues to function with original query.
+        
+        Args:
+            raw_query (str): Original user query
+            error_msg (str): Error message for logging
+            
+        Returns:
+            ProcessedQuery: Minimal fallback query structure
+        """
         return ProcessedQuery(
             raw_query=raw_query,
             technical_terms=TechnicalTerms([], [], [], []),
@@ -134,15 +208,26 @@ class ResponseParser:
         )
 
 
-# Fonction utilitaire
 def parse_llm_response(llm_response: str, raw_query: str) -> ProcessedQuery:
-    """Fonction utilitaire pour parser une réponse LLM"""
+    """
+    Utility function for parsing LLM response.
+    
+    Provides convenient interface for LLM response parsing without requiring
+    manual parser instantiation.
+    
+    Args:
+        llm_response (str): Raw LLM response to parse
+        raw_query (str): Original user query
+        
+    Returns:
+        ProcessedQuery: Structured query analysis result
+    """
     parser = ResponseParser()
     return parser.parse_llm_response(llm_response, raw_query)
 
 
 if __name__ == "__main__":
-    # Test simple
+    # Simple test
     test_response = '''
     ```json
     {
@@ -172,9 +257,9 @@ if __name__ == "__main__":
     
     try:
         parsed = parse_llm_response(test_response, test_query)
-        print(f"✅ Test réussi:")
-        print(f"   Requête filtrée: {parsed.filtered_query}")
-        print(f"   Codes d'erreur: {parsed.technical_terms.error_codes}")
-        print(f"   Équipement: {parsed.equipment_info.primary_equipment}")
+        print(f"Test successful:")
+        print(f"   Filtered query: {parsed.filtered_query}")
+        print(f"   Error codes: {parsed.technical_terms.error_codes}")
+        print(f"   Equipment: {parsed.equipment_info.primary_equipment}")
     except Exception as e:
-        print(f"❌ Test échoué: {e}")
+        print(f"Test failed: {e}")

@@ -1,10 +1,21 @@
 #!/usr/bin/env python3
 """
-Test du système de re-ranking CrossEncoder
-Teste l'initialisation, le re-ranking et les performances du CrossEncoder
+CrossEncoder Reranking System Test Suite
 
-IMPORTANT: Pour run le test:
-OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 poetry run python tests/test_cross_encoder.py > tests/test_reports/test_cross_encoder.txt 2>&1
+This module provides comprehensive testing capabilities for the CrossEncoder reranking system
+used in the RAG diagnosis pipeline. It validates initialization, reranking functionality,
+performance characteristics, and integration with the fusion pipeline through systematic
+testing of various scenarios and edge cases.
+
+Key components:
+- Module availability validation: Tests CrossEncoder import and dependency resolution
+- Initialization testing: Validates model loading with default and custom configurations
+- Reranking functionality: Tests core reranking capabilities with realistic data
+- Performance benchmarking: Measures speed and efficiency across different data sizes
+- Edge case validation: Tests system robustness with boundary conditions
+
+Dependencies: sentence-transformers, torch, numpy, pyyaml, pathlib
+Usage: OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 poetry run python tests/test_cross_encoder.py > tests/test_reports/test_cross_encoder.txt 2>&1
 """
 
 import sys
@@ -14,93 +25,126 @@ import yaml
 from typing import Dict, Any, List
 import numpy as np
 
-# Ajouter le répertoire racine au path pour les imports
+# Add root directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
-# Import optionnel du reranker
+# Optional reranker import
 try:
     from core.reranking_engine.cross_encoder_reranker import CrossEncoderReranker
     RERANKER_AVAILABLE = True
 except ImportError as e:
-    print(f"⚠️ CrossEncoderReranker non disponible: {e}")
+    print(f"Warning: CrossEncoderReranker not available: {e}")
     RERANKER_AVAILABLE = False
     CrossEncoderReranker = None
 
-
 def print_separator(title: str, char: str = "="):
-    """Affiche un séparateur avec titre"""
+    """
+    Display a separator with title for test section organization
+    
+    Args:
+        title (str): Section title to display
+        char (str): Character to use for separator line
+    """
     print(f"\n{char * 60}")
     print(f" {title}")
     print(f"{char * 60}")
 
-
 def load_settings(config_path: str = "config/settings.yaml") -> Dict[str, Any]:
-    """Charge la configuration depuis le fichier YAML"""
+    """
+    Load configuration from YAML settings file
+    
+    Args:
+        config_path (str): Path to configuration file
+        
+    Returns:
+        Dict[str, Any]: Loaded configuration settings with fallback defaults
+    """
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             return yaml.safe_load(f)
     except Exception as e:
-        print(f"⚠️ Erreur chargement config: {e}")
+        print(f"Warning: Config loading error: {e}")
         return {
             "models": {
                 "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"
             }
         }
 
-
 def test_reranker_availability():
-    """Test de disponibilité du module reranker"""
-    print_separator("TEST DE DISPONIBILITÉ")
+    """
+    Test reranker module availability and import status
+    
+    Validates that the CrossEncoderReranker module can be imported and provides
+    guidance for dependency installation if imports fail.
+    
+    Returns:
+        bool: True if module is available, False otherwise
+    """
+    print_separator("AVAILABILITY TEST")
     
     if RERANKER_AVAILABLE:
-        print("✅ Module CrossEncoderReranker disponible")
+        print("CrossEncoderReranker module available")
         return True
     else:
-        print("❌ Module CrossEncoderReranker non disponible")
-        print("💡 Vérifiez l'installation: poetry add sentence-transformers torch")
+        print("CrossEncoderReranker module not available")
+        print("Note: Check installation: poetry add sentence-transformers torch")
         return False
-
 
 def test_reranker_initialization():
-    """Test d'initialisation du CrossEncoder"""
-    print_separator("TEST D'INITIALISATION")
+    """
+    Test CrossEncoder initialization with default settings
+    
+    Validates that the CrossEncoder can be properly initialized, measures
+    initialization time, and retrieves model information for verification.
+    
+    Returns:
+        tuple: (success_status, reranker_instance) or (False, None) on failure
+    """
+    print_separator("INITIALIZATION TEST")
     
     if not RERANKER_AVAILABLE:
-        print("⏭️ Skip - module non disponible")
+        print("Skip - module not available")
         return False
     
-    # Test avec modèle par défaut
-    print("🔄 Test initialisation modèle par défaut...")
+    # Test with default model
+    print("Testing default model initialization...")
     try:
         start_time = time.time()
         reranker = CrossEncoderReranker()
         init_time = time.time() - start_time
         
-        print(f"✅ Initialisation réussie ({init_time:.2f}s)")
+        print(f"Initialization successful ({init_time:.2f}s)")
         
-        # Vérifier les infos du modèle
+        # Verify model information
         model_info = reranker.get_model_info()
-        print(f"📊 Infos modèle:")
+        print(f"Model information:")
         for key, value in model_info.items():
             print(f"   {key}: {value}")
         
         return True, reranker
         
     except Exception as e:
-        print(f"❌ Erreur initialisation: {e}")
+        print(f"Initialization error: {e}")
         return False, None
 
-
 def test_reranker_with_custom_model():
-    """Test d'initialisation avec modèle custom"""
-    print_separator("TEST MODÈLE CUSTOM")
+    """
+    Test initialization with custom model from configuration
+    
+    Validates that the CrossEncoder can be initialized with a custom model
+    specified in the configuration file, ensuring flexibility in model selection.
+    
+    Returns:
+        tuple: (success_status, reranker_instance) or (False, None) on failure
+    """
+    print_separator("CUSTOM MODEL TEST")
     
     if not RERANKER_AVAILABLE:
-        print("⏭️ Skip - module non disponible")
+        print("Skip - module not available")
         return False
     
-    # Test avec modèle léger pour rapidité
-    print("🔄 Test avec modèle léger...")
+    # Test with lightweight model for speed
+    print("Testing lightweight model...")
     try:
         settings = load_settings()
         model_name = settings["models"]["reranker_model"]
@@ -109,16 +153,23 @@ def test_reranker_with_custom_model():
         reranker = CrossEncoderReranker(model_name=model_name)
         init_time = time.time() - start_time
         
-        print(f"✅ Modèle {model_name} chargé ({init_time:.2f}s)")
+        print(f"Model {model_name} loaded ({init_time:.2f}s)")
         return True, reranker
         
     except Exception as e:
-        print(f"❌ Erreur modèle custom: {e}")
+        print(f"Custom model error: {e}")
         return False, None
 
-
 def create_test_candidates() -> List[Dict[str, Any]]:
-    """Crée des candidats de test simulant les résultats de fusion"""
+    """
+    Create test candidates simulating fusion pipeline results
+    
+    Generates realistic test data that mimics the output of the fusion pipeline,
+    including document metadata, text content, and various scoring components.
+    
+    Returns:
+        List[Dict[str, Any]]: List of candidate documents with metadata and scores
+    """
     return [
         {
             "document_id": "fanuc_manual",
@@ -162,56 +213,64 @@ def create_test_candidates() -> List[Dict[str, Any]]:
         }
     ]
 
-
 def test_basic_reranking():
-    """Test de re-ranking basique"""
-    print_separator("TEST RE-RANKING BASIQUE")
+    """
+    Test basic reranking functionality with standard test data
+    
+    Validates core reranking capabilities by processing test candidates and
+    analyzing the resulting reordering. Compares before and after rankings
+    to assess reranking effectiveness.
+    
+    Returns:
+        tuple: (success_status, reranked_results) or (False, None) on failure
+    """
+    print_separator("BASIC RERANKING TEST")
     
     if not RERANKER_AVAILABLE:
-        print("⏭️ Skip - module non disponible")
+        print("Skip - module not available")
         return False
     
     try:
-        # Initialisation
+        # Initialization
         reranker = CrossEncoderReranker()
-        print("✅ Reranker initialisé")
+        print("Reranker initialized")
         
-        # Données de test
+        # Test data
         query = "ACAL-006 error on FANUC robot teach pendant"
         candidates = create_test_candidates()
         
-        print(f"🔍 Requête: \"{query}\"")
-        print(f"📊 Candidats: {len(candidates)}")
+        print(f"Query: \"{query}\"")
+        print(f"Candidates: {len(candidates)}")
         
-        # Affichage avant re-ranking
-        print(f"\n📋 AVANT RE-RANKING (tri par score fusion):")
+        # Display before reranking
+        print(f"\nBEFORE RERANKING (sorted by fusion score):")
         for i, candidate in enumerate(candidates):
             print(f"   {i+1}. Score: {candidate['fused_score']:.3f} | {candidate['document_id']}|{candidate['chunk_id']}")
             print(f"      {candidate['text'][:80]}...")
         
-        # Re-ranking
-        print(f"\n🎯 Re-ranking avec CrossEncoder...")
+        # Reranking
+        print(f"\nReranking with CrossEncoder...")
         start_time = time.time()
         reranked = reranker.rerank(query, candidates, top_k=len(candidates))
         rerank_time = time.time() - start_time
         
-        print(f"✅ Re-ranking terminé ({rerank_time:.2f}s)")
+        print(f"Reranking completed ({rerank_time:.2f}s)")
         
-        # Affichage après re-ranking
-        print(f"\n🏆 APRÈS RE-RANKING (tri par CrossEncoder):")
+        # Display after reranking
+        print(f"\nAFTER RERANKING (sorted by CrossEncoder):")
         for i, result in enumerate(reranked):
             cross_score = result.get('cross_encoder_score', 0)
             fusion_score = result.get('fused_score', 0)
             original_rank = result.get('original_rank', '?')
             
-            print(f"   {i+1}. CrossEncoder: {cross_score:.3f} | Fusion: {fusion_score:.3f} | Rang orig: #{original_rank}")
+            print(f"   {i+1}. CrossEncoder: {cross_score:.3f} | Fusion: {fusion_score:.3f} | Orig rank: #{original_rank}")
             print(f"      {result['document_id']}|{result['chunk_id']}")
             print(f"      {result['text'][:80]}...")
         
-        # Analyse des changements
-        print(f"\n📊 ANALYSE DES CHANGEMENTS:")
+        # Analyze changes
+        print(f"\nCHANGE ANALYSIS:")
         
-        # Ordre original vs re-ranké
+        # Original vs reranked order
         original_order = [(c['document_id'], c['chunk_id']) for c in candidates]
         reranked_order = [(r['document_id'], r['chunk_id']) for r in reranked]
         
@@ -220,70 +279,77 @@ def test_basic_reranking():
             if orig != rerank:
                 changes += 1
         
-        print(f"   🔄 Positions changées: {changes}/{len(candidates)}")
-        print(f"   ⏱️ Temps par document: {(rerank_time/len(candidates)*1000):.1f}ms")
+        print(f"   Position changes: {changes}/{len(candidates)}")
+        print(f"   Time per document: {(rerank_time/len(candidates)*1000):.1f}ms")
         
-        # Vérifier que le premier résultat est plus pertinent
+        # Verify best result relevance
         if reranked:
             best_result = reranked[0]
             if "ACAL-006" in best_result['text'] and "TPE" in best_result['text']:
-                print(f"   ✅ Le meilleur résultat contient les termes clés de la requête")
+                print(f"   Best result contains query key terms")
             else:
-                print(f"   ⚠️ Le meilleur résultat ne semble pas optimal")
+                print(f"   Warning: Best result may not be optimal")
         
         return True, reranked
         
     except Exception as e:
-        print(f"❌ Erreur re-ranking basique: {e}")
+        print(f"Basic reranking error: {e}")
         import traceback
         traceback.print_exc()
         return False, None
 
-
 def test_edge_cases():
-    """Test des cas limites"""
-    print_separator("TEST CAS LIMITES")
+    """
+    Test edge cases and boundary conditions
+    
+    Validates system robustness by testing various edge cases including empty inputs,
+    invalid data, and boundary conditions that may occur in production use.
+    
+    Returns:
+        bool: True if all edge case tests pass, False otherwise
+    """
+    print_separator("EDGE CASES TEST")
     
     if not RERANKER_AVAILABLE:
-        print("⏭️ Skip - module non disponible")
+        print("Skip - module not available")
         return False
     
     try:
         reranker = CrossEncoderReranker()
         
-        # Test 1: Liste vide
-        print("📊 Test 1: Liste de candidats vide")
+        # Test 1: Empty list
+        print("Test 1: Empty candidate list")
         empty_result = reranker.rerank("test query", [], top_k=5)
-        print(f"   Résultat: {len(empty_result)} documents (attendu: 0)")
+        print(f"   Result: {len(empty_result)} documents (expected: 0)")
         
-        # Test 2: Requête vide
-        print("\n📊 Test 2: Requête vide")
+        # Test 2: Empty query
+        print("\nTest 2: Empty query")
         candidates = create_test_candidates()[:2]
         empty_query_result = reranker.rerank("", candidates, top_k=5)
-        print(f"   Résultat: {len(empty_query_result)} documents")
-        print(f"   Ordre conservé: {len(empty_query_result) == len(candidates)}")
+        print(f"   Result: {len(empty_query_result)} documents")
+        print(f"   Order preserved: {len(empty_query_result) == len(candidates)}")
         
-        # Test 3: Textes vides ou invalides
-        print("\n📊 Test 3: Candidats avec textes vides")
+        # Test 3: Empty or invalid texts
+        print("\nTest 3: Candidates with empty texts")
         invalid_candidates = [
             {"document_id": "doc1", "chunk_id": "1", "text": "", "fused_score": 0.8},
             {"document_id": "doc2", "chunk_id": "2", "text": "Valid text here", "fused_score": 0.7},
-            {"document_id": "doc3", "chunk_id": "3", "text": "   ", "fused_score": 0.6}  # Espaces
+            {"document_id": "doc3", "chunk_id": "3", "text": "   ", "fused_score": 0.6}  # Spaces only
         ]
         
         invalid_result = reranker.rerank("test query", invalid_candidates, top_k=5)
-        print(f"   Candidats originaux: {len(invalid_candidates)}")
-        print(f"   Candidats re-rankés: {len(invalid_result)}")
+        print(f"   Original candidates: {len(invalid_candidates)}")
+        print(f"   Reranked candidates: {len(invalid_result)}")
         
-        # Test 4: top_k plus grand que candidats disponibles
-        print("\n📊 Test 4: top_k > nombre de candidats")
+        # Test 4: top_k larger than available candidates
+        print("\nTest 4: top_k > number of candidates")
         small_candidates = create_test_candidates()[:2]
         large_k_result = reranker.rerank("test", small_candidates, top_k=10)
-        print(f"   Candidats: {len(small_candidates)}, top_k: 10, résultat: {len(large_k_result)}")
+        print(f"   Candidates: {len(small_candidates)}, top_k: 10, result: {len(large_k_result)}")
         
-        # Test 5: Très long texte
-        print("\n📊 Test 5: Texte très long")
-        long_text = "This is a very long text. " * 100  # ~2500 caractères
+        # Test 5: Very long text
+        print("\nTest 5: Very long text")
+        long_text = "This is a very long text. " * 100  # ~2500 characters
         long_candidates = [{
             "document_id": "long_doc",
             "chunk_id": "1", 
@@ -292,30 +358,37 @@ def test_edge_cases():
         }]
         
         long_result = reranker.rerank("test query", long_candidates, top_k=1)
-        print(f"   Texte original: {len(long_text)} chars")
-        print(f"   Traitement réussi: {len(long_result) > 0}")
+        print(f"   Original text: {len(long_text)} chars")
+        print(f"   Processing successful: {len(long_result) > 0}")
         
         return True
         
     except Exception as e:
-        print(f"❌ Erreur tests cas limites: {e}")
+        print(f"Edge cases test error: {e}")
         import traceback
         traceback.print_exc()
         return False
 
-
 def test_score_pairs():
-    """Test de la fonction score_pairs"""
-    print_separator("TEST SCORE PAIRS")
+    """
+    Test the score_pairs functionality for direct query-document scoring
+    
+    Validates the ability to score query-document pairs directly, which is
+    useful for understanding model behavior and debugging reranking results.
+    
+    Returns:
+        bool: True if score_pairs test passes, False otherwise
+    """
+    print_separator("SCORE PAIRS TEST")
     
     if not RERANKER_AVAILABLE:
-        print("⏭️ Skip - module non disponible")
+        print("Skip - module not available")
         return False
     
     try:
         reranker = CrossEncoderReranker()
         
-        # Test pairs simples
+        # Test simple pairs
         pairs = [
             ("robot error", "The robot displays an error message on screen"),
             ("robot error", "Installing new software on the computer"),
@@ -323,66 +396,73 @@ def test_score_pairs():
             ("calibration procedure", "The weather is nice today")
         ]
         
-        print(f"🔍 Test de {len(pairs)} paires query-document")
+        print(f"Testing {len(pairs)} query-document pairs")
         
         start_time = time.time()
         scores = reranker.score_pairs(pairs)
         score_time = time.time() - start_time
         
-        print(f"✅ Scoring terminé ({score_time:.2f}s)")
+        print(f"Scoring completed ({score_time:.2f}s)")
         
-        print(f"\n📊 RÉSULTATS DES SCORES:")
+        print(f"\nSCORE RESULTS:")
         for i, (query, doc, score) in enumerate(zip([p[0] for p in pairs], [p[1] for p in pairs], scores)):
             print(f"   {i+1}. Score: {score:.4f}")
             print(f"      Query: \"{query}\"")
             print(f"      Doc: \"{doc[:60]}...\"")
             print()
         
-        # Vérification logique des scores
+        # Logical score verification
         if len(scores) >= 4:
-            # Les paires pertinentes devraient avoir des scores plus élevés
+            # Relevant pairs should have higher scores
             relevant_scores = [scores[0], scores[2]]  # robot-robot, calibration-calibration
             irrelevant_scores = [scores[1], scores[3]]  # robot-software, calibration-weather
             
             avg_relevant = np.mean(relevant_scores)
             avg_irrelevant = np.mean(irrelevant_scores)
             
-            print(f"📈 Score moyen pertinent: {avg_relevant:.4f}")
-            print(f"📉 Score moyen non-pertinent: {avg_irrelevant:.4f}")
+            print(f"Average relevant score: {avg_relevant:.4f}")
+            print(f"Average irrelevant score: {avg_irrelevant:.4f}")
             
             if avg_relevant > avg_irrelevant:
-                print("✅ Logique des scores correcte (pertinent > non-pertinent)")
+                print("Score logic correct (relevant > irrelevant)")
             else:
-                print("⚠️ Logique des scores questionnable")
+                print("Warning: Score logic questionable")
         
         return True
         
     except Exception as e:
-        print(f"❌ Erreur test score pairs: {e}")
+        print(f"Score pairs test error: {e}")
         return False
 
-
 def test_performance_benchmark():
-    """Test de performance du reranker"""
-    print_separator("TEST PERFORMANCE")
+    """
+    Test reranker performance across different data sizes
+    
+    Conducts performance benchmarking by measuring reranking speed across
+    various candidate set sizes to assess scalability and efficiency.
+    
+    Returns:
+        bool: True if performance tests complete successfully, False otherwise
+    """
+    print_separator("PERFORMANCE TEST")
     
     if not RERANKER_AVAILABLE:
-        print("⏭️ Skip - module non disponible")
+        print("Skip - module not available")
         return False
     
     try:
         reranker = CrossEncoderReranker()
         
-        # Test avec différentes tailles de candidats
+        # Test with different candidate sizes
         test_sizes = [5, 10, 20]
         query = "FANUC robot error ACAL-006"
         
-        print(f"🚀 Benchmark avec requête: \"{query}\"")
+        print(f"Benchmark with query: \"{query}\"")
         
         for size in test_sizes:
-            print(f"\n📊 Test avec {size} candidats:")
+            print(f"\nTest with {size} candidates:")
             
-            # Créer des candidats de test
+            # Create test candidates
             base_candidates = create_test_candidates()
             test_candidates = []
             
@@ -392,26 +472,26 @@ def test_performance_benchmark():
                 candidate['text'] = f"Document {i}: " + candidate['text']
                 test_candidates.append(candidate)
             
-            # Mesurer le temps
+            # Measure time
             start_time = time.time()
             reranked = reranker.rerank(query, test_candidates, top_k=min(5, size))
             rerank_time = time.time() - start_time
             
-            # Calculer les métriques
+            # Calculate metrics
             docs_per_second = size / rerank_time if rerank_time > 0 else float('inf')
             ms_per_doc = (rerank_time / size) * 1000 if size > 0 else 0
             
-            print(f"   ⏱️ Temps total: {rerank_time:.3f}s")
-            print(f"   📈 Documents/seconde: {docs_per_second:.1f}")
-            print(f"   📊 ms par document: {ms_per_doc:.1f}ms")
-            print(f"   ✅ Résultats: {len(reranked)}")
+            print(f"   Total time: {rerank_time:.3f}s")
+            print(f"   Documents/second: {docs_per_second:.1f}")
+            print(f"   ms per document: {ms_per_doc:.1f}ms")
+            print(f"   Results: {len(reranked)}")
         
-        # Test benchmark intégré
-        print(f"\n🧪 Test benchmark intégré:")
+        # Integrated benchmark test
+        print(f"\nIntegrated benchmark test:")
         test_docs = [candidate['text'] for candidate in create_test_candidates()]
         benchmark_results = reranker.benchmark_speed(query, test_docs, num_runs=3)
         
-        print(f"📊 Résultats benchmark:")
+        print(f"Benchmark results:")
         for key, value in benchmark_results.items():
             if isinstance(value, float):
                 print(f"   {key}: {value:.3f}")
@@ -421,22 +501,30 @@ def test_performance_benchmark():
         return True
         
     except Exception as e:
-        print(f"❌ Erreur test performance: {e}")
+        print(f"Performance test error: {e}")
         return False
 
-
 def test_with_fusion_data():
-    """Test avec des données simulant vraiment le pipeline de fusion"""
-    print_separator("TEST AVEC DONNÉES FUSION RÉALISTES")
+    """
+    Test with realistic data simulating the fusion pipeline output
+    
+    Validates reranking performance using realistic data that closely mirrors
+    the actual fusion pipeline output, including comprehensive metadata and
+    scoring information for authentic testing conditions.
+    
+    Returns:
+        tuple: (success_status, reranked_results) or (False, None) on failure
+    """
+    print_separator("REALISTIC FUSION DATA TEST")
     
     if not RERANKER_AVAILABLE:
-        print("⏭️ Skip - module non disponible")
+        print("Skip - module not available")
         return False
     
     try:
         reranker = CrossEncoderReranker()
         
-        # Simuler des résultats de fusion réalistes
+        # Simulate realistic fusion results
         fusion_candidates = [
             {
                 "document_id": "fanuc_troubleshooting_guide",
@@ -487,19 +575,19 @@ def test_with_fusion_data():
         
         query = "I got ACAL-006 error on my FANUC teach pendant, what should I do?"
         
-        print(f"🔍 Requête réaliste: \"{query}\"")
-        print(f"📊 {len(fusion_candidates)} candidats de fusion")
+        print(f"Realistic query: \"{query}\"")
+        print(f"{len(fusion_candidates)} fusion candidates")
         
-        # Afficher l'ordre initial
-        print(f"\n📋 ORDRE INITIAL (par score fusion):")
+        # Display initial order
+        print(f"\nINITIAL ORDER (by fusion score):")
         for i, candidate in enumerate(fusion_candidates):
             print(f"   {i+1}. Fusion: {candidate['fused_score']:.4f} | BM25: {candidate['bm25_score']:.4f} | FAISS: {candidate['faiss_score']:.4f}")
             print(f"      {candidate['document_id']}")
             print(f"      {candidate['text'][:100]}...")
             print()
         
-        # Re-ranking
-        print(f"🎯 Re-ranking avec CrossEncoder...")
+        # Reranking
+        print(f"Reranking with CrossEncoder...")
         start_time = time.time()
         reranked_results = reranker.rerank(
             query=query,
@@ -509,78 +597,82 @@ def test_with_fusion_data():
         )
         rerank_time = time.time() - start_time
         
-        print(f"✅ Re-ranking terminé ({rerank_time:.3f}s)")
+        print(f"Reranking completed ({rerank_time:.3f}s)")
         
-        # Afficher les résultats re-rankés
-        print(f"\n🏆 ORDRE APRÈS RE-RANKING:")
+        # Display reranked results
+        print(f"\nORDER AFTER RERANKING:")
         for i, result in enumerate(reranked_results):
             cross_score = result['cross_encoder_score']
             fusion_score = result['fused_score']
             original_rank = result['original_rank']
             
-            print(f"   {i+1}. CrossEncoder: {cross_score:.4f} | Fusion: {fusion_score:.4f} | Rang orig: #{original_rank}")
+            print(f"   {i+1}. CrossEncoder: {cross_score:.4f} | Fusion: {fusion_score:.4f} | Orig rank: #{original_rank}")
             print(f"      {result['document_id']}")
             print(f"      {result['text'][:100]}...")
             
-            # Analyser si c'est un bon match
+            # Analyze match quality
             text_lower = result['text'].lower()
             if 'acal-006' in text_lower and any(term in text_lower for term in ['teach pendant', 'tpe']):
-                print(f"      ✅ Excellent match (contient ACAL-006 + teach pendant)")
+                print(f"      Excellent match (contains ACAL-006 + teach pendant)")
             elif 'acal-006' in text_lower:
-                print(f"      ✅ Bon match (contient ACAL-006)")
+                print(f"      Good match (contains ACAL-006)")
             elif any(term in text_lower for term in ['teach pendant', 'tpe', 'communication']):
-                print(f"      ⚠️ Match partiel")
+                print(f"      Partial match")
             else:
-                print(f"      ❌ Match faible")
+                print(f"      Weak match")
             print()
         
-        # Analyse des améliorations
-        print(f"📊 ANALYSE DE L'AMÉLIORATION:")
+        # Improvement analysis
+        print(f"IMPROVEMENT ANALYSIS:")
         
-        # Comparer les positions
+        # Compare positions
         position_changes = 0
         for i, result in enumerate(reranked_results):
             original_pos = result['original_rank'] - 1  # Convert to 0-based
             new_pos = i
             if original_pos != new_pos:
                 position_changes += 1
-                print(f"   🔄 {result['document_id']}: position {original_pos+1} → {new_pos+1}")
+                print(f"   Position change {result['document_id']}: position {original_pos+1} → {new_pos+1}")
         
-        print(f"   📈 Changements de position: {position_changes}/{len(reranked_results)}")
+        print(f"   Position changes: {position_changes}/{len(reranked_results)}")
         
-        # Vérifier si le résultat le plus pertinent est en tête
+        # Verify most relevant result is at top
         best_result = reranked_results[0] if reranked_results else None
         if best_result and 'acal-006' in best_result['text'].lower():
-            print(f"   ✅ Le résultat #1 contient ACAL-006 (très pertinent)")
+            print(f"   Result #1 contains ACAL-006 (highly relevant)")
         else:
-            print(f"   ⚠️ Le résultat #1 ne contient pas ACAL-006")
+            print(f"   Warning: Result #1 does not contain ACAL-006")
         
         return True, reranked_results
         
     except Exception as e:
-        print(f"❌ Erreur test données fusion: {e}")
+        print(f"Fusion data test error: {e}")
         import traceback
         traceback.print_exc()
         return False, None
 
-
 def main():
-    """Fonction principale du test"""
-    print_separator("🎯 TEST DU SYSTÈME DE RE-RANKING CROSSENCODER 🎯")
+    """
+    Main test execution pipeline for CrossEncoder reranking system
+    
+    Orchestrates the complete test suite execution, tracks results, and provides
+    comprehensive reporting on system functionality and performance characteristics.
+    """
+    print_separator("CROSSENCODER RERANKING SYSTEM TEST SUITE")
     
     total_tests = 0
     passed_tests = 0
     
-    # Liste des tests
+    # Test suite definition
     tests = [
-        ("Disponibilité", test_reranker_availability),
-        ("Initialisation", test_reranker_initialization),
-        ("Modèle custom", test_reranker_with_custom_model),
-        ("Re-ranking basique", test_basic_reranking),
-        ("Cas limites", test_edge_cases),
+        ("Availability", test_reranker_availability),
+        ("Initialization", test_reranker_initialization),
+        ("Custom model", test_reranker_with_custom_model),
+        ("Basic reranking", test_basic_reranking),
+        ("Edge cases", test_edge_cases),
         ("Score pairs", test_score_pairs),
         ("Performance", test_performance_benchmark),
-        ("Données fusion", test_with_fusion_data)
+        ("Fusion data", test_with_fusion_data)
     ]
     
     start_time = time.time()
@@ -590,7 +682,7 @@ def main():
         total_tests += 1
         
         try:
-            # Certains tests retournent des tuples, d'autres des booléens
+            # Some tests return tuples, others return booleans
             result = test_func()
             if isinstance(result, tuple):
                 success = result[0]
@@ -599,41 +691,40 @@ def main():
             
             if success:
                 passed_tests += 1
-                print(f"✅ {test_name}: RÉUSSI")
+                print(f"{test_name}: PASSED")
             else:
-                print(f"❌ {test_name}: ÉCHEC")
+                print(f"{test_name}: FAILED")
                 
         except Exception as e:
-            print(f"💥 {test_name}: EXCEPTION - {e}")
+            print(f"{test_name}: EXCEPTION - {e}")
     
-    # Rapport final
+    # Final report
     total_time = time.time() - start_time
     success_rate = (passed_tests / total_tests) * 100 if total_tests > 0 else 0
     
-    print_separator("📊 RAPPORT FINAL")
-    print(f"⏱️ Temps total: {total_time:.1f}s")
-    print(f"✅ Tests réussis: {passed_tests}/{total_tests}")
-    print(f"📈 Taux de réussite: {success_rate:.1f}%")
+    print_separator("FINAL REPORT")
+    print(f"Total time: {total_time:.1f}s")
+    print(f"Tests passed: {passed_tests}/{total_tests}")
+    print(f"Success rate: {success_rate:.1f}%")
     
     if success_rate >= 80:
-        print("\n🎉 CROSSENCODER FONCTIONNE CORRECTEMENT!")
-        print("🏅 Le système de re-ranking est opérationnel")
+        print("\nCROSSENCODER WORKING CORRECTLY")
+        print("Reranking system is operational")
         if passed_tests == total_tests:
-            print("💯 TOUS LES TESTS RÉUSSIS!")
+            print("ALL TESTS PASSED")
     elif success_rate >= 60:
-        print("\n⚠️ CrossEncoder partiellement fonctionnel")
-        print("🔧 Quelques problèmes à résoudre")
+        print("\nCrossEncoder partially functional")
+        print("Some issues need resolution")
     else:
-        print("\n❌ PROBLÈMES MAJEURS DÉTECTÉS")
-        print("🛠️ Révision nécessaire du système de re-ranking")
+        print("\nMAJOR PROBLEMS DETECTED")
+        print("Reranking system requires revision")
         
         if not RERANKER_AVAILABLE:
-            print("\n💡 SOLUTION PROBABLE:")
+            print("\nPROBABLE SOLUTION:")
             print("   poetry add sentence-transformers torch")
-            print("   Puis relancer le test")
+            print("   Then restart the test")
     
-    print_separator("✅ TEST CROSSENCODER TERMINÉ")
-
+    print_separator("CROSSENCODER TEST COMPLETED")
 
 if __name__ == "__main__":
     main()

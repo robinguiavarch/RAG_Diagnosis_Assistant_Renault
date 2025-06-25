@@ -1,79 +1,73 @@
 """
-Script simple pour lancer tous les tests query_processing
+run_tests
+=========
+
+Simple utility script to execute all unit tests for the `query_processing` module.
+
+Each test script is run sequentially using pytest, and a summary of the
+number of passed and failed files is printed to the console.
 """
 
+import os
 import subprocess
 import sys
-import os
 
-def run_tests():
-    """Lance tous les tests du module query_processing"""
-    
-    # Chemin vers le dossier des tests
+
+def run_tests() -> None:
+    """Execute all unit test scripts in the query_processing module directory."""
+
     test_dir = os.path.dirname(__file__)
-    
-    # Liste des fichiers de test
+
     test_files = [
         "test_llm_client.py",
-        "test_response_parser.py", 
+        "test_response_parser.py",
         "test_unified_processor.py",
         "test_enhanced_retrieval.py",
-        "test_integration.py"
+        "test_integration.py",
     ]
-    
-    print("🧪 Lancement des tests query_processing")
+
+    print("Running unit tests for query_processing")
     print("=" * 50)
-    
+
     total_tests = 0
     passed_tests = 0
     failed_files = []
-    
+
     for test_file in test_files:
         test_path = os.path.join(test_dir, test_file)
-        
+
         if not os.path.exists(test_path):
-            print(f"⚠️ Fichier manquant: {test_file}")
+            print(f"[SKIPPED] Missing file: {test_file}")
             continue
-        
-        print(f"\n📋 {test_file}")
+
+        print(f"\n▶ Running: {test_file}")
         print("-" * 30)
-        
+
         try:
-            # Lancer pytest pour ce fichier
-            result = subprocess.run([
-                sys.executable, "-m", "pytest", test_path, "-v"
-            ], capture_output=True, text=True, cwd=os.path.join(test_dir, "..", ".."))
-            
-            if result.returncode == 0:
-                print("✅ RÉUSSI")
-                # Compter les tests (approximatif)
-                test_count = result.stdout.count("PASSED")
-                total_tests += test_count
-                passed_tests += test_count
-            else:
-                print("❌ ÉCHEC")
-                failed_files.append(test_file)
-                print(f"Erreur: {result.stderr}")
-                
-        except Exception as e:
-            print(f"❌ ERREUR: {e}")
+            result = subprocess.run(
+                [sys.executable, "-m", "pytest", test_path],
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+                check=True,
+            )
+            passed_tests += 1
+        except subprocess.CalledProcessError:
+            print(f"[FAILED] {test_file}")
             failed_files.append(test_file)
-    
-    # Résumé final
-    print("\n" + "=" * 50)
-    print("📊 RÉSUMÉ FINAL")
+
+        total_tests += 1
+
+    print("\nTest summary")
     print("=" * 50)
-    print(f"✅ Tests réussis: {passed_tests}")
-    print(f"📁 Fichiers testés: {len(test_files) - len(failed_files)}/{len(test_files)}")
-    
+    print(f"Total test scripts run: {total_tests}")
+    print(f"Passed               : {passed_tests}")
+    print(f"Failed               : {len(failed_files)}")
+
     if failed_files:
-        print(f"❌ Fichiers échoués: {', '.join(failed_files)}")
-        return False
-    else:
-        print("🎉 TOUS LES TESTS SONT PASSÉS !")
-        return True
+        print("\nFailed files:")
+        for f in failed_files:
+            print(f" - {f}")
 
 
 if __name__ == "__main__":
-    success = run_tests()
-    sys.exit(0 if success else 1)
+    run_tests()

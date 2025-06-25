@@ -1,31 +1,72 @@
+"""
+SCR Extraction Analyzer: Statistical Analysis and Quality Assessment
+
+This module provides comprehensive analysis tools for Symptom-Cause-Remedy (SCR) triplet
+extraction results. It processes CSV files containing extracted SCR triplets and generates
+detailed statistics, quality metrics, and analytical reports.
+
+Key components:
+- Data loading and consolidation from multiple CSV extraction files
+- Statistical analysis of triplet distribution and content quality
+- Equipment and error code coverage analysis
+- Automated report generation with detailed metrics
+- Console-based summary display and DataFrame inspection
+
+Dependencies: pandas, pathlib, yaml, collections
+Usage: Run as standalone script or import functions for custom analysis workflows
+"""
+
 import os
 import pandas as pd
 from pathlib import Path
 from typing import Dict, Any, List
 import yaml
 from collections import Counter
-
-# AJOUTER au début du script
 import sys
-from pathlib import Path
 
-# Ajouter la racine du projet au Python path
+# Add project root to Python path
 sys.path.append(str(Path(__file__).parent.parent))
 
 def load_settings() -> Dict[str, Any]:
-    """Charge la configuration depuis settings.yaml"""
+    """
+    Load configuration settings from YAML file.
+    
+    Reads the main configuration file to access project paths and settings
+    required for SCR triplet analysis.
+    
+    Returns:
+        Dict[str, Any]: Configuration dictionary containing all project settings
+        
+    Raises:
+        FileNotFoundError: If settings.yaml file is not found
+        yaml.YAMLError: If YAML file is malformed
+    """
     config_path = Path(__file__).parent.parent / "config" / "settings.yaml"
     with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 def load_scr_data(extract_dir: Path) -> pd.DataFrame:
-    """Charge tous les fichiers CSV d'extraction SCR"""
+    """
+    Load and consolidate all SCR triplet CSV files from extraction directory.
+    
+    Searches for all CSV files matching the pattern '*_scr_triplets.csv' and
+    combines them into a single DataFrame with additional analytical columns.
+    
+    Args:
+        extract_dir (Path): Directory containing SCR triplet CSV files
+        
+    Returns:
+        pd.DataFrame: Combined DataFrame with all triplets and computed features
+        
+    Raises:
+        FileNotFoundError: If no CSV files are found in the specified directory
+    """
     csv_files = list(extract_dir.glob("*_scr_triplets.csv"))
     
     if not csv_files:
-        raise FileNotFoundError(f"Aucun fichier CSV trouvé dans {extract_dir}")
+        raise FileNotFoundError(f"No CSV files found in {extract_dir}")
     
-    # Charger et combiner tous les CSV
+    # Load and combine all CSV files
     dataframes = []
     for csv_file in csv_files:
         df = pd.read_csv(csv_file)
@@ -34,7 +75,7 @@ def load_scr_data(extract_dir: Path) -> pd.DataFrame:
     
     combined_df = pd.concat(dataframes, ignore_index=True)
     
-    # Nettoyer et préparer les données
+    # Clean and prepare data with computed features
     combined_df['error_code'] = combined_df['symptom'].str.extract(r'([A-Z]+-\d+)')
     combined_df['error_prefix'] = combined_df['error_code'].str.split('-').str[0]
     combined_df['cause_length'] = combined_df['cause'].str.len()
@@ -43,7 +84,18 @@ def load_scr_data(extract_dir: Path) -> pd.DataFrame:
     return combined_df
 
 def generate_statistics_report(df: pd.DataFrame) -> Dict[str, Any]:
-    """Génère des statistiques détaillées sur l'extraction"""
+    """
+    Generate comprehensive statistical analysis of SCR triplet data.
+    
+    Computes key metrics including coverage statistics, content analysis,
+    and distribution patterns across equipment types and error codes.
+    
+    Args:
+        df (pd.DataFrame): DataFrame containing SCR triplet data
+        
+    Returns:
+        Dict[str, Any]: Dictionary containing all computed statistics and metrics
+    """
     stats = {
         'total_triplets': len(df),
         'unique_documents': df['URL'].nunique(),
@@ -61,175 +113,219 @@ def generate_statistics_report(df: pd.DataFrame) -> Dict[str, Any]:
     return stats
 
 def create_summary_report(df: pd.DataFrame, stats: Dict[str, Any], output_dir: Path):
-    """Crée un rapport de synthèse en texte"""
+    """
+    Create comprehensive text-based analysis report.
+    
+    Generates a detailed markdown report containing all statistical findings,
+    distribution analysis, and content quality metrics.
+    
+    Args:
+        df (pd.DataFrame): Source data for analysis
+        stats (Dict[str, Any]): Pre-computed statistics dictionary
+        output_dir (Path): Directory where report file will be saved
+        
+    Returns:
+        None: Report is saved to file system
+    """
     
     report_content = f"""
-# RAPPORT D'ANALYSE - EXTRACTION SCR
+# SCR EXTRACTION ANALYSIS REPORT
 =====================================================
 
-## 📊 STATISTIQUES GÉNÉRALES
-- **Total de triplets extraits**: {stats['total_triplets']:,}
-- **Documents traités**: {stats['unique_documents']}
-- **Équipements différents**: {stats['unique_equipments']}
-- **Codes d'erreur uniques**: {stats['unique_error_codes']:,}
-- **Préfixes d'erreur uniques**: {stats['unique_error_prefixes']}
+## GENERAL STATISTICS
+- **Total extracted triplets**: {stats['total_triplets']:,}
+- **Processed documents**: {stats['unique_documents']}
+- **Different equipment types**: {stats['unique_equipments']}
+- **Unique error codes**: {stats['unique_error_codes']:,}
+- **Unique error prefixes**: {stats['unique_error_prefixes']}
 
-## 📖 COUVERTURE DES PAGES
-- **Total de pages concernées**: {stats['total_pages']:,}
-- **Plage de pages**: {stats['pages_range'][0]} à {stats['pages_range'][1]}
-- **Moyenne triplets/page**: {stats['avg_triplets_per_page']:.1f}
+## PAGE COVERAGE
+- **Total pages processed**: {stats['total_pages']:,}
+- **Page range**: {stats['pages_range'][0]} to {stats['pages_range'][1]}
+- **Average triplets per page**: {stats['avg_triplets_per_page']:.1f}
 
-## 📝 ANALYSE DU CONTENU
-- **Longueur moyenne des causes**: {stats['avg_cause_length']:.0f} caractères
-- **Longueur moyenne des remèdes**: {stats['avg_remedy_length']:.0f} caractères
+## CONTENT ANALYSIS
+- **Average cause length**: {stats['avg_cause_length']:.0f} characters
+- **Average remedy length**: {stats['avg_remedy_length']:.0f} characters
 
-## 🔝 TOP PRÉFIXES D'ERREUR
+## TOP ERROR PREFIXES
 """
     
     for prefix, count in list(stats['error_prefixes_distribution'].items())[:10]:
         percentage = (count / stats['total_triplets']) * 100
         report_content += f"- **{prefix}**: {count:,} triplets ({percentage:.1f}%)\n"
     
-    # Sauvegarder le rapport
-    with open(output_dir / 'rapport_analyse_scr.md', 'w', encoding='utf-8') as f:
+    # Save the report
+    with open(output_dir / 'scr_analysis_report.md', 'w', encoding='utf-8') as f:
         f.write(report_content)
     
-    print("📄 Rapport détaillé sauvegardé: rapport_analyse_scr.md")
+    print("Detailed report saved: scr_analysis_report.md")
 
 def display_console_summary(stats: Dict[str, Any]):
-    """Affiche un résumé dans la console"""
-    print(f"\n📊 RÉSUMÉ DE L'ANALYSE SCR")
-    print(f"{'='*60}")
-    print(f"✅ Total triplets: {stats['total_triplets']:,}")
-    print(f"📄 Documents: {stats['unique_documents']}")
-    print(f"🏭 Équipements: {stats['unique_equipments']}")
-    print(f"🚨 Codes d'erreur uniques: {stats['unique_error_codes']:,}")
-    print(f"📖 Pages concernées: {stats['total_pages']:,}")
-    print(f"📊 Triplets/page (moy): {stats['avg_triplets_per_page']:.1f}")
+    """
+    Display concise analysis summary in console.
     
-    print(f"\n🔝 TOP 10 PRÉFIXES D'ERREUR:")
+    Prints key statistics and findings to console for quick overview
+    of extraction results and quality metrics.
+    
+    Args:
+        stats (Dict[str, Any]): Statistics dictionary from generate_statistics_report
+        
+    Returns:
+        None: Output is printed to console
+    """
+    print(f"\nSCR ANALYSIS SUMMARY")
+    print(f"{'='*60}")
+    print(f"Total triplets: {stats['total_triplets']:,}")
+    print(f"Documents: {stats['unique_documents']}")
+    print(f"Equipment types: {stats['unique_equipments']}")
+    print(f"Unique error codes: {stats['unique_error_codes']:,}")
+    print(f"Pages processed: {stats['total_pages']:,}")
+    print(f"Triplets per page (avg): {stats['avg_triplets_per_page']:.1f}")
+    
+    print(f"\nTOP 10 ERROR PREFIXES:")
     for i, (prefix, count) in enumerate(list(stats['error_prefixes_distribution'].items())[:10], 1):
         percentage = (count / stats['total_triplets']) * 100
         print(f"   {i:2d}. {prefix}: {count:,} ({percentage:.1f}%)")
     
-    print(f"\n📏 LONGUEURS MOYENNES:")
-    print(f"   Causes: {stats['avg_cause_length']:.0f} caractères")
-    print(f"   Remèdes: {stats['avg_remedy_length']:.0f} caractères")
+    print(f"\nAVERAGE LENGTHS:")
+    print(f"   Causes: {stats['avg_cause_length']:.0f} characters")
+    print(f"   Remedies: {stats['avg_remedy_length']:.0f} characters")
 
 def display_dataframe_sample(df: pd.DataFrame):
-    """Affiche les 50 premières lignes du DataFrame de manière lisible"""
-    print(f"\n📊 DATAFRAME - 50 PREMIÈRES LIGNES")
+    """
+    Display structured sample of DataFrame content for inspection.
+    
+    Shows first 50 rows in tabular format with truncated text fields,
+    followed by detailed examples and DataFrame metadata.
+    
+    Args:
+        df (pd.DataFrame): DataFrame containing SCR triplet data
+        
+    Returns:
+        None: Output is printed to console
+    """
+    print(f"\nDATAFRAME SAMPLE - FIRST 50 ROWS")
     print(f"{'='*120}")
     
-    # Afficher les colonnes principales du CSV d'extraction
+    # Display main columns from extraction CSV
     main_columns = ['URL', 'equipment', 'page', 'symptom', 'cause', 'remedy']
     
-    # Vérifier que les colonnes existent
+    # Check that columns exist
     available_columns = [col for col in main_columns if col in df.columns]
     
     if len(available_columns) < 6:
-        print(f"⚠️ Colonnes manquantes. Colonnes disponibles: {list(df.columns)}")
+        print(f"Warning: Missing columns. Available columns: {list(df.columns)}")
         display_df = df[available_columns]
     else:
         display_df = df[available_columns].copy()
         
-        # Tronquer les textes longs pour l'affichage dans le tableau
+        # Truncate long texts for table display
         display_df['symptom_short'] = display_df['symptom'].str[:50] + '...'
         display_df['cause_short'] = display_df['cause'].str[:40] + '...'
         display_df['remedy_short'] = display_df['remedy'].str[:40] + '...'
         
-        # Créer un DataFrame d'affichage avec textes tronqués
+        # Create display DataFrame with truncated texts
         clean_df = pd.DataFrame({
             'URL': display_df['URL'],
             'Equipment': display_df['equipment'].str[:20] + '...',
             'Page': display_df['page'],
-            'Symptôme': display_df['symptom_short'],
+            'Symptom': display_df['symptom_short'],
             'Cause': display_df['cause_short'],
-            'Remède': display_df['remedy_short']
+            'Remedy': display_df['remedy_short']
         })
         
-        # Configurer l'affichage pandas
+        # Configure pandas display options
         pd.set_option('display.max_columns', None)
         pd.set_option('display.width', 120)
         pd.set_option('display.max_colwidth', 50)
         pd.set_option('display.max_rows', 50)
         
-        # Afficher le DataFrame nettoyé
+        # Display cleaned DataFrame
         print(clean_df.head(50))
     
-    print(f"\n📋 QUELQUES EXEMPLES DÉTAILLÉS:")
+    print(f"\nDETAILED EXAMPLES:")
     print(f"{'─'*120}")
     
-    # Afficher 3 exemples complets ligne par ligne
+    # Display 3 complete examples line by line
     for i in range(min(3, len(df))):
         row = df.iloc[i]
-        print(f"\n🔹 TRIPLET {i+1}")
+        print(f"\nTRIPLET {i+1}")
         print(f"   URL:       {row.get('URL', 'N/A')}")
         print(f"   Equipment: {row.get('equipment', 'N/A')}")
         print(f"   Page:      {row.get('page', 'N/A')}")
-        print(f"   Symptôme:  {row.get('symptom', 'N/A')}")
+        print(f"   Symptom:   {row.get('symptom', 'N/A')}")
         print(f"   Cause:     {row.get('cause', 'N/A')}")
-        print(f"   Remède:    {row.get('remedy', 'N/A')}")
+        print(f"   Remedy:    {row.get('remedy', 'N/A')}")
         print(f"   {'─'*100}")
     
-    print(f"\n📋 INFORMATIONS SUR LE DATAFRAME:")
+    print(f"\nDATAFRAME INFORMATION:")
     print(f"{'─'*60}")
-    print(f"📏 Forme: {df.shape[0]:,} lignes × {df.shape[1]} colonnes")
-    print(f"📊 Colonnes réelles: {list(df.columns)}")
-    print(f"📝 Colonnes attendues: ['URL', 'equipment', 'page', 'symptom', 'cause', 'remedy']")
+    print(f"Shape: {df.shape[0]:,} rows × {df.shape[1]} columns")
+    print(f"Actual columns: {list(df.columns)}")
+    print(f"Expected columns: ['URL', 'equipment', 'page', 'symptom', 'cause', 'remedy']")
     
     if 'page' in df.columns:
-        print(f"\n📈 STATISTIQUES RAPIDES:")
+        print(f"\nQUICK STATISTICS:")
         print(f"   Pages min/max: {df['page'].min()} - {df['page'].max()}")
         if 'cause' in df.columns:
-            print(f"   Longueur cause moy/max: {df['cause'].str.len().mean():.0f} / {df['cause'].str.len().max()}")
+            print(f"   Cause length avg/max: {df['cause'].str.len().mean():.0f} / {df['cause'].str.len().max()}")
         if 'remedy' in df.columns:
-            print(f"   Longueur remède moy/max: {df['remedy'].str.len().mean():.0f} / {df['remedy'].str.len().max()}")
+            print(f"   Remedy length avg/max: {df['remedy'].str.len().mean():.0f} / {df['remedy'].str.len().max()}")
 
 def main():
+    """
+    Main execution function for SCR extraction analysis.
+    
+    Orchestrates the complete analysis workflow including data loading,
+    statistical computation, report generation, and console output.
+    
+    Returns:
+        None: Results are saved to files and displayed in console
+    """
     try:
-        print("🔍 Visualisation des résultats d'extraction SCR")
+        print("SCR Extraction Results Analysis")
         print("="*60)
         
-        # Charger la configuration
+        # Load configuration
         settings = load_settings()
         base_extract_dir = Path(settings["paths"]["scr_triplets"])
         
-        # Répertoire de sortie pour les visualisations
+        # Output directory for analysis reports
         output_dir = Path(settings["paths"]["outputs"]) / "analytic_reports"
         
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        print(f"📂 Chargement des données depuis: {base_extract_dir}")
+        print(f"Loading data from: {base_extract_dir}")
         
-        # Charger les données
+        # Load data
         df = load_scr_data(base_extract_dir)
-        print(f"✅ Données chargées: {len(df):,} triplets")
+        print(f"Data loaded: {len(df):,} triplets")
         
-        # Générer les statistiques
-        print("📊 Génération des statistiques...")
+        # Generate statistics
+        print("Generating statistics...")
         stats = generate_statistics_report(df)
         
-        # Afficher le résumé dans la console
+        # Display console summary
         display_console_summary(stats)
         
-        # Afficher le DataFrame
+        # Display DataFrame sample
         display_dataframe_sample(df)
         
-        # Créer le rapport de synthèse
-        print(f"\n📝 Génération du rapport...")
+        # Create summary report
+        print(f"\nGenerating report...")
         create_summary_report(df, stats, output_dir)
         
-        print(f"\n🎉 ANALYSE TERMINÉE")
+        print(f"\nANALYSIS COMPLETED")
         print(f"{'='*60}")
-        print(f"📁 Rapport généré dans: {output_dir}")
-        print(f"📄 Fichier: rapport_analyse_scr.md")
+        print(f"Report generated in: {output_dir}")
+        print(f"File: scr_analysis_report.md")
         
     except FileNotFoundError as e:
-        print(f"❌ Fichiers non trouvés: {e}")
-        print(f"💡 Exécutez d'abord: python scripts/00_extract_scr_triplets.py")
+        print(f"Files not found: {e}")
+        print(f"Please run first: python scripts/00_extract_scr_triplets.py")
     except Exception as e:
-        print(f"❌ Erreur: {e}")
+        print(f"Error: {e}")
         import traceback
         traceback.print_exc()
 

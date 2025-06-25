@@ -1,14 +1,41 @@
-# src/retrieval/fusion.py
+"""
+Hybrid Fusion: Advanced Search Result Combination and Deduplication
+
+This module provides sophisticated fusion capabilities for combining lexical and semantic
+search results in the RAG diagnosis system. It implements score normalization, weighted
+fusion algorithms, and intelligent deduplication mechanisms to optimize hybrid search
+performance and result quality.
+
+Key components:
+- Min-max score normalization for consistent cross-retriever comparison
+- Weighted fusion algorithm combining BM25 lexical and FAISS semantic results
+- Intelligent deduplication using content-based hashing
+- Source tracking and mixed result identification
+- Configurable weighting parameters for lexical vs semantic balance
+
+Dependencies: numpy, collections, hashlib
+Usage: Import fusion functions for combining and deduplicating hybrid search results
+"""
 
 from typing import List, Dict, Tuple
 from collections import defaultdict
 import numpy as np
+import hashlib
 
 
 def normalize_scores(results: List[Dict], key: str = "score") -> List[Dict]:
     """
-    Normalise les scores d'un retriever entre 0 et 1 (min-max scaling).
-    Ajoute un champ 'normalized_score' à chaque document.
+    Normalize retriever scores between 0 and 1 using min-max scaling.
+    
+    Applies min-max normalization to ensure consistent score ranges across
+    different retrieval methods, adding a 'normalized_score' field to each document.
+    
+    Args:
+        results (List[Dict]): List of search results with scores
+        key (str): Score field name to normalize
+        
+    Returns:
+        List[Dict]: Results with added normalized_score field
     """
     if not results:
         return results
@@ -31,10 +58,19 @@ def fuse_results(
     alpha: float = 0.5
 ) -> List[Dict]:
     """
-    Fusionne les résultats BM25 et FAISS via une moyenne pondérée des scores normalisés.
-
-    - alpha : poids du lexical (BM25) vs sémantique (FAISS)
-    - Chaque document reçoit un champ 'source' (BM25, FAISS ou Mixte)
+    Fuse BM25 and FAISS results using weighted average of normalized scores.
+    
+    Combines lexical and semantic search results through score normalization
+    and weighted fusion, with source tracking for result provenance analysis.
+    
+    Args:
+        bm25_results (List[Dict]): BM25 lexical search results
+        faiss_results (List[Dict]): FAISS semantic search results
+        top_k (int): Number of top results to return
+        alpha (float): Weight for lexical (BM25) vs semantic (FAISS) scores
+        
+    Returns:
+        List[Dict]: Fused results sorted by combined score with source attribution
     """
     bm25_results = normalize_scores(bm25_results, key="score")
     faiss_results = normalize_scores(faiss_results, key="score")
@@ -58,15 +94,15 @@ def fuse_results(
         fused_dict[key]["text"] = key
         fused_dict[key]["faiss_score"] = doc["normalized_score"]
         if fused_dict[key]["source"]:
-            fused_dict[key]["source"] = "Mixte"
+            fused_dict[key]["source"] = "Mixed"
         else:
-            fused_dict[key]["source"] = "Sémantique (FAISS)"
+            fused_dict[key]["source"] = "Semantic (FAISS)"
 
-    # Score final : moyenne pondérée
+    # Final score: weighted average
     for doc in fused_dict.values():
         doc["fused_score"] = alpha * doc["bm25_score"] + (1 - alpha) * doc["faiss_score"]
 
-    # Tri décroissant par score fusionné
+    # Sort by fused score in descending order
     fused_list = list(fused_dict.values())
     fused_list.sort(key=lambda d: d["fused_score"], reverse=True)
 
@@ -74,14 +110,17 @@ def fuse_results(
 
 def deduplicate_by_content_hash(candidates: List[Dict]) -> List[Dict]:
     """
-    Déduplication intelligente basée sur le hash du contenu
-    Utilisée par le nouveau EnhancedRetrievalEngine
+    Intelligent deduplication based on content hashing.
+    
+    Removes duplicate documents by computing MD5 hashes of content text,
+    preserving only the first occurrence of each unique content piece.
+    Used by the enhanced retrieval engine for result optimization.
     
     Args:
-        candidates: Liste des candidats à dédupliquer
+        candidates (List[Dict]): List of candidate documents to deduplicate
         
     Returns:
-        Liste déduplicquée
+        List[Dict]: Deduplicated list with unique content only
     """
     if not candidates:
         return []
@@ -94,7 +133,7 @@ def deduplicate_by_content_hash(candidates: List[Dict]) -> List[Dict]:
         if not content:
             continue
         
-        # Hash du contenu pour détecter les doublons exacts
+        # Content hash to detect exact duplicates
         content_hash = hashlib.md5(content.encode()).hexdigest()
         
         if content_hash not in seen_hashes:

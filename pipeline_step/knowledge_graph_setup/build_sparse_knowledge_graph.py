@@ -1,18 +1,21 @@
 """
-Pour lancer:
-docker run --rm \
-  -v $(pwd)/.env:/app/.env \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/pipeline_step:/app/pipeline_step \
-  --network host \
-  diagnosis-app \
-  poetry run python pipeline_step/knowledge_graph_setup/build_sparse_knowledge_graph.py
-"""
+Sparse Knowledge Graph Construction with Cloud/Local Support
 
-"""
-Construction Knowledge Graph Sparse avec support Cloud/Local
-Structure simple 1:1:1 sans densification
+This module constructs a Sparse Knowledge Graph that maintains a simple 1:1:1 structure
+without densification. Each triplet (Symptom-Cause-Remedy) is preserved as distinct nodes
+with direct relationships, maintaining the original data structure for baseline comparison
+and specific use cases requiring exact correspondence to source data.
+
+Key components:
+- Sparse graph construction: Creates simple 1:1:1 relationships without similarity-based densification
+- Equipment-aware modeling: Incorporates equipment metadata on all nodes with triplet traceability
+- Cloud/local connectivity: Intelligent connection management for Neo4j deployments
+- Data preservation: Maintains all duplicates except identical triplets for complete fidelity
+
+Dependencies: neo4j, pandas, pyyaml, python-dotenv
+Usage: docker run --rm -v $(pwd)/.env:/app/.env -v $(pwd)/data:/app/data 
+       -v $(pwd)/config:/app/config -v $(pwd)/pipeline_step:/app/pipeline_step 
+       --network host diagnosis-app poetry run python pipeline_step/knowledge_graph_setup/build_sparse_knowledge_graph.py
 """
 
 import os
@@ -21,11 +24,16 @@ from neo4j import GraphDatabase
 from dotenv import load_dotenv
 import yaml
 
-# === Chargement des variables d'environnement (.env) ===
+# Load environment variables from .env
 load_dotenv()
 
 def load_settings():
-    """Charge la configuration depuis settings.yaml"""
+    """
+    Load configuration from settings.yaml file
+    
+    Returns:
+        dict: Loaded configuration settings
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(script_dir, "..", "..", "config", "settings.yaml")
     with open(config_path, 'r', encoding='utf-8') as file:
@@ -33,16 +41,24 @@ def load_settings():
 
 def get_neo4j_connection(kg_type="sparse"):
     """
-    🌐 Connexion intelligente Cloud/Local
-    kg_type: "dense", "sparse", ou "dense_sc"
+    Establish intelligent Cloud/Local Neo4j connection
+    
+    Implements cloud-first connection strategy with automatic local fallback.
+    Supports multiple Knowledge Graph types with appropriate credential selection.
+    
+    Args:
+        kg_type (str): Knowledge Graph type ("dense", "sparse", or "dense_sc")
+        
+    Returns:
+        neo4j.Driver: Configured Neo4j database driver
     """
     load_dotenv()
     
-    # Priorité au Cloud si activé
+    # Priority to Cloud if enabled
     cloud_enabled = os.getenv("NEO4J_CLOUD_ENABLED", "false").lower() == "true"
     
     if cloud_enabled:
-        print(f"🌐 MODE CLOUD pour {kg_type.upper()}")
+        print(f"CLOUD MODE for {kg_type.upper()}")
         
         if kg_type == "dense":
             uri = os.getenv("NEO4J_DENSE_CLOUD_URI")
@@ -55,14 +71,14 @@ def get_neo4j_connection(kg_type="sparse"):
             password = os.getenv("NEO4J_DENSE_SC_CLOUD_PASS")
         
         if uri and password:
-            print(f"🔌 Connexion Cloud {kg_type}: {uri}")
+            print(f"Cloud connection {kg_type}: {uri}")
             return GraphDatabase.driver(uri, auth=("neo4j", password))
         else:
-            print(f"❌ Credentials cloud manquants pour {kg_type}")
+            print(f"Missing cloud credentials for {kg_type}")
             cloud_enabled = False
     
-    # Fallback Local
-    print(f"🏠 MODE LOCAL pour {kg_type.upper()}")
+    # Local fallback
+    print(f"LOCAL MODE for {kg_type.upper()}")
     
     if kg_type == "dense":
         uri = os.getenv("NEO4J_URI_DENSE", "bolt://host.docker.internal:7687")
@@ -77,22 +93,33 @@ def get_neo4j_connection(kg_type="sparse"):
         user = os.getenv("NEO4J_USER_DENSE_SC", "neo4j")
         password = os.getenv("NEO4J_PASS_DENSE_SC", "password")
     
-    print(f"🔌 Connexion Local {kg_type}: {uri}")
+    print(f"Local connection {kg_type}: {uri}")
     return GraphDatabase.driver(uri, auth=(user, password))
 
-# === PARAMÈTRES ===
+# Configuration parameters
 script_dir = os.path.dirname(os.path.abspath(__file__))
 CSV_PATH = os.path.join(script_dir, "..", "..", "data", "knowledge_base", "scr_triplets", "doc-R-30iB_scr_triplets.csv")
 
-# === CONNEXION NEO4J ===
+# Neo4j connection
 driver = get_neo4j_connection("sparse")
 
 def find_csv_file():
-    """Trouve le fichier CSV en testant plusieurs chemins"""
-    # Chemin principal
+    """
+    Locate CSV file by testing multiple potential paths
+    
+    Implements fallback path resolution to handle different deployment scenarios
+    and directory structures commonly encountered in containerized environments.
+    
+    Returns:
+        str: Path to the located CSV file
+        
+    Raises:
+        FileNotFoundError: When CSV file cannot be found in any tested path
+    """
+    # Main path
     main_path = CSV_PATH
     
-    # Chemins alternatifs
+    # Alternative paths
     alt_paths = [
         os.path.join(script_dir, "..", "..", "data", "extract_scr", "doc-R-30iB_scr_triplets.csv"),
         os.path.join(script_dir, "..", "data", "extract_scr", "doc-R-30iB_scr_triplets.csv"),
@@ -101,69 +128,98 @@ def find_csv_file():
         os.path.join("data", "knowledge_base", "scr_triplets", "doc-R-30iB_scr_triplets.csv")
     ]
     
-    # Test du chemin principal
+    # Test main path
     if os.path.exists(main_path):
         return main_path
     
-    # Test des chemins alternatifs
-    print("📂 Vérification chemins alternatifs...")
+    # Test alternative paths
+    print("Checking alternative paths...")
     for alt_path in alt_paths:
         if os.path.exists(alt_path):
-            print(f"✅ Fichier trouvé: {alt_path}")
+            print(f"File found: {alt_path}")
             return alt_path
     
-    # Aucun fichier trouvé
-    raise FileNotFoundError(f"Fichier CSV introuvable dans tous les chemins testés")
+    # No file found
+    raise FileNotFoundError(f"CSV file not found in any tested paths")
 
-# === CHARGEMENT ET NETTOYAGE DES DONNÉES ===
 def load_and_clean_data():
-    """Charge et nettoie les données CSV en supprimant les doublons"""
-    print("📂 Chargement du fichier CSV...")
+    """
+    Load and clean CSV data by removing duplicates and null values
+    
+    Performs comprehensive data validation and cleaning while preserving the sparse
+    structure. Removes only exact duplicates to maintain data fidelity for the
+    1:1:1 relationship model characteristic of sparse knowledge graphs.
+    
+    Returns:
+        pd.DataFrame: Cleaned and validated dataset ready for sparse graph construction
+        
+    Raises:
+        ValueError: When required 'equipment' column is missing from the dataset
+        FileNotFoundError: When CSV file cannot be located
+    """
+    print("Loading CSV file...")
     
     try:
         csv_path = find_csv_file()
         df = pd.read_csv(csv_path)
-        print(f"✅ Fichier CSV chargé: {csv_path}")
+        print(f"CSV file loaded: {csv_path}")
     except FileNotFoundError as e:
-        print(f"❌ ERREUR: {str(e)}")
+        print(f"ERROR: {str(e)}")
         raise
     
-    print(f"📊 Données initiales : {len(df)} lignes")
-    print(f"📋 Colonnes détectées : {list(df.columns)}")
+    print(f"Initial data: {len(df)} rows")
+    print(f"Detected columns: {list(df.columns)}")
     
-    # Vérification que la colonne equipment existe
+    # Verify equipment column exists
     if 'equipment' not in df.columns:
-        print("❌ ERREUR: Colonne 'equipment' manquante dans le CSV")
-        raise ValueError("Colonne 'equipment' requise")
+        print("ERROR: Missing 'equipment' column in CSV")
+        raise ValueError("Required 'equipment' column")
     
-    # Suppression des lignes avec des valeurs manquantes (incluant equipment)
+    # Remove rows with missing values (including equipment)
     df.dropna(subset=["symptom", "cause", "remedy", "equipment"], inplace=True)
-    print(f"📊 Après suppression NaN : {len(df)} lignes")
+    print(f"After NaN removal: {len(df)} rows")
     
-    # Suppression des doublons exacts (même symptom, cause, remedy, equipment)
+    # Remove exact duplicates (same symptom, cause, remedy, equipment)
     df_before_dedup = len(df)
     df = df.drop_duplicates(subset=["symptom", "cause", "remedy", "equipment"], keep="first")
     duplicates_removed = df_before_dedup - len(df)
-    print(f"📊 Doublons supprimés : {duplicates_removed}")
-    print(f"📊 Données finales : {len(df)} lignes")
+    print(f"Duplicates removed: {duplicates_removed}")
+    print(f"Final data: {len(df)} rows")
     
-    # Affichage des équipements uniques
+    # Display unique equipment types
     unique_equipment = df['equipment'].unique()
-    print(f"🏭 Équipements uniques trouvés : {len(unique_equipment)}")
+    print(f"Unique equipment types found: {len(unique_equipment)}")
     for eq in sorted(unique_equipment):
         count = len(df[df['equipment'] == eq])
         print(f"   • {eq}: {count} triplets")
     
     return df
 
-# === NETTOYAGE COMPLET DE LA BASE ===
 def clear_database(tx):
-    """Vide complètement la base Neo4j pour un fresh start"""
+    """
+    Completely clear the Neo4j database for fresh start
+    
+    Args:
+        tx: Neo4j transaction object
+    """
     tx.run("MATCH (n) DETACH DELETE n")
 
-# === INSERTION DES TRIPLETS SCR (APPROCHE SPARSE) ===
 def insert_triplets_sparse(tx, s, c, r, equipment, triplet_id):
-    """Insert un triplet SCR avec equipment en préservant TOUS les nœuds"""
+    """
+    Insert SCR triplet with equipment while preserving ALL nodes in sparse structure
+    
+    Creates individual nodes for each element of the triplet without any merging,
+    maintaining the 1:1:1 structure characteristic of sparse knowledge graphs.
+    Each node receives equipment metadata and a unique triplet ID for traceability.
+    
+    Args:
+        tx: Neo4j transaction object
+        s (str): Symptom text
+        c (str): Cause text
+        r (str): Remedy text
+        equipment (str): Equipment type identifier
+        triplet_id (int): Unique identifier for this triplet instance
+    """
     tx.run("""
         CREATE (sym:Symptom {name: $s, equipment: $equipment, triplet_id: $triplet_id})
         CREATE (cause:Cause {name: $c, equipment: $equipment, triplet_id: $triplet_id})
@@ -172,9 +228,16 @@ def insert_triplets_sparse(tx, s, c, r, equipment, triplet_id):
         CREATE (cause)-[:TREATED_BY]->(rem)
     """, s=s, c=c, r=r, equipment=equipment, triplet_id=triplet_id)
 
-# === STATISTIQUES ET VALIDATION ===
 def print_graph_stats(tx):
-    """Affiche les statistiques du graphe sparse avec equipment"""
+    """
+    Display statistics of the sparse graph with equipment information
+    
+    Provides comprehensive statistics including node counts, relationship counts,
+    and equipment distribution specific to the sparse knowledge graph structure.
+    
+    Args:
+        tx: Neo4j transaction object
+    """
     result = tx.run("""
         RETURN 
         count{(s:Symptom)} as symptoms,
@@ -185,17 +248,17 @@ def print_graph_stats(tx):
     """)
     
     stats = result.single()
-    print("\n📈 STATISTIQUES DU GRAPHE SPARSE :")
-    print(f"   • Symptômes : {stats['symptoms']}")
-    print(f"   • Causes : {stats['causes']}")
-    print(f"   • Remèdes : {stats['remedies']}")
-    print(f"   • Relations CAUSES : {stats['causes_relations']}")
-    print(f"   • Relations TREATED_BY : {stats['treated_by_relations']}")
-    print(f"   • TOTAL nœuds : {stats['symptoms'] + stats['causes'] + stats['remedies']}")
-    print(f"   • TOTAL relations : {stats['causes_relations'] + stats['treated_by_relations']}")
+    print("\nSPARSE GRAPH STATISTICS:")
+    print(f"   • Symptoms: {stats['symptoms']}")
+    print(f"   • Causes: {stats['causes']}")
+    print(f"   • Remedies: {stats['remedies']}")
+    print(f"   • CAUSES relations: {stats['causes_relations']}")
+    print(f"   • TREATED_BY relations: {stats['treated_by_relations']}")
+    print(f"   • TOTAL nodes: {stats['symptoms'] + stats['causes'] + stats['remedies']}")
+    print(f"   • TOTAL relations: {stats['causes_relations'] + stats['treated_by_relations']}")
     
-    # Statistiques par équipement
-    print("\n🏭 RÉPARTITION PAR ÉQUIPEMENT :")
+    # Equipment distribution statistics
+    print("\nEQUIPMENT DISTRIBUTION:")
     eq_result = tx.run("""
         MATCH (s:Symptom)
         WHERE s.equipment IS NOT NULL
@@ -206,10 +269,18 @@ def print_graph_stats(tx):
     for record in eq_result:
         equipment = record['equipment']
         count = record['symptom_count']
-        print(f"   • {equipment}: {count} symptômes")
+        print(f"   • {equipment}: {count} symptoms")
 
 def check_orphaned_nodes(tx):
-    """Vérifie s'il y a des nœuds orphelins dans le graphe sparse"""
+    """
+    Check for orphaned nodes in the sparse graph
+    
+    Validates graph integrity by identifying nodes without any relationships,
+    which should not occur in a properly constructed sparse knowledge graph.
+    
+    Args:
+        tx: Neo4j transaction object
+    """
     result = tx.run("""
         MATCH (n)
         WHERE NOT (n)--()
@@ -218,73 +289,78 @@ def check_orphaned_nodes(tx):
     
     orphaned = result.single()["orphaned_nodes"]
     if orphaned > 0:
-        print(f"   ⚠️  Nœuds orphelins détectés : {orphaned}")
+        print(f"   Warning: Orphaned nodes detected: {orphaned}")
     else:
-        print(f"   ✅ Aucun nœud orphelin")
+        print(f"   No orphaned nodes found")
 
-# === PIPELINE PRINCIPAL (SPARSE + EQUIPMENT + CLOUD) ===
 def main():
-    """Pipeline de création d'une Knowledge Base SPARSE avec equipment et support cloud"""
-    print("🚀 DÉMARRAGE DU PIPELINE NEO4J SPARSE + EQUIPMENT + CLOUD")
+    """
+    Main pipeline for creating a SPARSE Knowledge Base with equipment and cloud support
+    
+    Orchestrates the complete Sparse Knowledge Graph construction process including
+    data loading, database clearing, triplet insertion, and validation. Maintains
+    the 1:1:1 structure without any densification or similarity-based processing.
+    """
+    print("SPARSE NEO4J PIPELINE STARTUP WITH EQUIPMENT AND CLOUD SUPPORT")
     print("=" * 70)
-    print("📝 Mode : Knowledge Base SPARSE (structure simple 1:1:1)")
-    print("🌐 Support : Cloud/Local automatique")
-    print("🆕 Propriétés equipment sur chaque nœud")
+    print("Mode: SPARSE Knowledge Base (simple 1:1:1 structure)")
+    print("Support: Automatic Cloud/Local connection")
+    print("Equipment properties on each node")
     print()
     
     try:
-        # Test de connexion
-        print("🔌 Test de connexion...")
+        # Connection test
+        print("Testing connection...")
         with driver.session() as session:
             result = session.run("RETURN 'Connected to Sparse KG!' as message")
             message = result.single()["message"]
-            print(f"✅ {message}")
+            print(f"Connection successful: {message}")
         
-        # Chargement et nettoyage des données
+        # Data loading and cleaning
         df = load_and_clean_data()
         
         with driver.session() as session:
-            print("\n📌 Étape 1 - Nettoyage de la base Neo4j Sparse...")
+            print("\nStep 1 - Neo4j Sparse database cleanup...")
             session.execute_write(clear_database)
             
-            print("📌 Étape 2 - Insertion des triplets SCR avec equipment...")
+            print("Step 2 - SCR triplet insertion with equipment...")
             for idx, row in df.iterrows():
                 session.execute_write(insert_triplets_sparse, 
                                     row["symptom"], 
                                     row["cause"], 
                                     row["remedy"],
                                     row["equipment"],
-                                    idx)  # ID unique pour traçabilité
+                                    idx)  # Unique ID for traceability
                 if (idx + 1) % 1000 == 0:
-                    print(f"   • {idx + 1}/{len(df)} triplets insérés...")
+                    print(f"   • {idx + 1}/{len(df)} triplets inserted...")
             
-            print("📌 Étape 3 - Génération des statistiques...")
+            print("Step 3 - Statistics generation...")
             session.execute_read(print_graph_stats)
             session.execute_read(check_orphaned_nodes)
         
-        print("\n✅ CRÉATION KNOWLEDGE BASE SPARSE + EQUIPMENT TERMINÉE !")
-        print("📊 Caractéristiques :")
-        print("   • Structure linéaire : 1 Symptôme → 1 Cause → 1 Remède")
-        print("   • Propriété equipment sur chaque nœud")
-        print("   • AUCUNE densification (pas de métrique hybride)")
-        print("   • AUCUNE déduplication des causes/remèdes")
-        print("   • Préservation totale des doublons (sauf triplets identiques)")
-        print("   • Relations 1:1:1 strictes du CSV original")
-        print("   • Traçabilité parfaite via triplet_id")
-        print("   • 🌐 Compatible Cloud/Local automatique")
+        print("\nSPARSE KNOWLEDGE BASE WITH EQUIPMENT CREATION COMPLETED")
+        print("Characteristics:")
+        print("   • Linear structure: 1 Symptom → 1 Cause → 1 Remedy")
+        print("   • Equipment property on each node")
+        print("   • NO densification (no hybrid metric)")
+        print("   • NO cause/remedy deduplication")
+        print("   • Total duplicate preservation (except identical triplets)")
+        print("   • Strict 1:1:1 relationships from original CSV")
+        print("   • Perfect traceability via triplet_id")
+        print("   • Automatic Cloud/Local compatibility")
         print()
-        print("🔗 Connectez-vous à Neo4j Browser pour explorer")
-        print("💡 Comparez avec les Knowledge Bases Dense !")
+        print("Connect to Neo4j Browser to explore")
+        print("Compare with Dense Knowledge Bases")
         print()
-        print("🔍 Requête test equipment :")
+        print("Equipment test query:")
         print("   MATCH (s:Symptom) WHERE s.equipment CONTAINS 'FANUC' RETURN s LIMIT 5")
         
     except FileNotFoundError:
         csv_path = find_csv_file() if 'find_csv_file' in locals() else CSV_PATH
-        print(f"❌ ERREUR : Fichier CSV introuvable : {csv_path}")
-        print("   Vérifiez que le fichier existe et que le chemin est correct.")
+        print(f"ERROR: CSV file not found: {csv_path}")
+        print("   Verify that the file exists and the path is correct.")
     except Exception as e:
-        print(f"❌ ERREUR INATTENDUE : {str(e)}")
+        print(f"UNEXPECTED ERROR: {str(e)}")
         import traceback
         traceback.print_exc()
     finally:

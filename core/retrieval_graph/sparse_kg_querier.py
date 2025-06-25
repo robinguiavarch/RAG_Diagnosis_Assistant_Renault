@@ -1,18 +1,20 @@
 """
-Sparse KG Querier - Version COMPLÈTE avec Multi-Query Fusion + Equipment Matching CORRIGÉE
-Recherche dans le Knowledge Graph Sparse (SANS propagation sémantique)
-Structure: 1 Symptôme → 1 Cause → 1 Remède (1:1:1)
-🆕 NOUVEAU: Multi-Query Fusion (filtered_query + variants) avec stratégie MAX Score
-Pour tester:
-docker run --rm \
-  -v $(pwd)/.env:/app/.env \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/core:/app/core \
-  --network host \
-  -e PYTHONPATH=/app \
-  diagnosis-app \
-  poetry run python core/retrieval_graph/sparse_kg_querier.py "motor overheating FANUC R-30iB error ACAL-006"
+Sparse KG Querier: Multi-Query Fusion Knowledge Graph Retrieval for 1:1:1 Structure
+
+This module provides comprehensive knowledge graph querying capabilities for the Sparse
+knowledge base with 1:1:1 structure (one symptom to one cause to one remedy). It implements
+multi-query fusion strategies, equipment matching, and direct triplet retrieval without
+semantic propagation for precise and efficient sparse knowledge graph operations.
+
+Key components:
+- Multi-query fusion with filtered queries and variants using MAX score strategy
+- Equipment matching and filtering for targeted sparse knowledge graph searches
+- Direct 1:1:1 triplet retrieval without semantic propagation for precise matching
+- Neo4j cloud and local connectivity with automatic fallback mechanisms
+- Unique triplet ID-based deduplication for sparse structure integrity
+
+Dependencies: neo4j, faiss, sentence-transformers, numpy, yaml, pickle
+Usage: Import querying functions for Sparse knowledge graph retrieval operations
 """
 
 import os
@@ -27,9 +29,9 @@ from typing import List, Dict, Optional
 
 load_dotenv()
 
-# === CONFIGURATION SIMPLE ===
+# Configuration Management
 def load_settings():
-    """Charge la configuration depuis settings.yaml"""
+    """Load configuration from settings.yaml with proper path resolution."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(script_dir, "..", "..", "config", "settings.yaml")
     with open(config_path, 'r', encoding='utf-8') as file:
@@ -41,65 +43,84 @@ threshold = config["graph_retrieval"]["symptom_similarity_threshold"]
 symptom_top_k = config["graph_retrieval"]["symptom_top_k"]
 triplets_limit = config["generation"]["top_k_triplets"]
 
-# Chemins pour Sparse
+# Paths for Sparse
 script_dir = os.path.dirname(os.path.abspath(__file__))
 embedding_dir = os.path.join(script_dir, "..", "..", "data", "knowledge_base", "symptom_embedding_sparse")
 
-# === FONCTIONS ESSENTIELLES ===
+# Core Functions
 
 def get_model():
-    """Charge le modèle d'embedding"""
+    """Load SentenceTransformer embedding model with device optimization."""
     try:
         import torch
         device = "cuda" if torch.cuda.is_available() else "cpu"
         return SentenceTransformer(model_name, device=device)
     except Exception as e:
-        print(f"❌ Erreur modèle : {e}")
+        print(f"Error loading model: {e}")
         raise
 
 def get_sparse_driver():
-    """🔧 CORRECTION: Connexion Sparse DIRECTE avec logique cloud/local"""
+    """
+    Establish Sparse database connection with cloud/local fallback logic.
+    
+    Implements priority-based connection strategy: cloud first, then local fallback
+    with comprehensive error handling and connection validation for Sparse KG.
+    
+    Returns:
+        GraphDatabase.driver: Neo4j driver instance for Sparse database
+    """
     load_dotenv()
     
-    # Priorité absolue au Cloud si activé
+    # Priority to cloud if enabled
     cloud_enabled = os.getenv("NEO4J_CLOUD_ENABLED", "false").lower() == "true"
     
     if cloud_enabled:
-        print("🌐 MODE CLOUD SPARSE (connexion directe)")
+        print("Cloud mode Sparse (direct connection)")
         uri = os.getenv("NEO4J_SPARSE_CLOUD_URI")
         password = os.getenv("NEO4J_SPARSE_CLOUD_PASS")
         
         if uri and password:
-            print(f"🔌 Connexion Cloud: {uri}")
+            print(f"Connecting to cloud: {uri}")
             try:
                 driver = GraphDatabase.driver(uri, auth=("neo4j", password))
-                # Test rapide de connexion
+                # Quick connection test
                 with driver.session() as session:
                     session.run("RETURN 1")
-                print("✅ Connexion Cloud Sparse réussie")
+                print("Cloud Sparse connection successful")
                 return driver
             except Exception as e:
-                print(f"❌ Échec connexion Cloud Sparse: {e}")
-                print("🔄 Fallback vers local...")
+                print(f"Cloud Sparse connection failed: {e}")
+                print("Falling back to local...")
         else:
-            print("❌ Credentials cloud manquants")
-            print("🔄 Fallback vers local...")
+            print("Cloud credentials missing")
+            print("Falling back to local...")
     
-    # Fallback Local
-    print("🏠 MODE LOCAL SPARSE")
+    # Local fallback
+    print("Local mode Sparse")
     db_uri = os.getenv("NEO4J_URI_SPARSE", "bolt://host.docker.internal:7689")
     db_user = os.getenv("NEO4J_USER_SPARSE", "neo4j")
     db_pass = os.getenv("NEO4J_PASS_SPARSE", "password")
-    print(f"🔌 Connexion Local: {db_uri}")
+    print(f"Connecting to local: {db_uri}")
     return GraphDatabase.driver(db_uri, auth=(db_user, db_pass))
 
 def load_symptom_index_sparse():
-    """Charge l'index FAISS des symptômes Sparse"""
+    """
+    Load FAISS index and metadata for Sparse symptom embeddings.
+    
+    Loads the specialized FAISS index for sparse knowledge graph structure
+    with validation for proper index and metadata file existence.
+    
+    Returns:
+        tuple: (FAISS index, metadata dict) for Sparse symptom search
+        
+    Raises:
+        FileNotFoundError: If index or metadata files are missing
+    """
     index_path = os.path.join(embedding_dir, "index.faiss")
     metadata_path = os.path.join(embedding_dir, "symptom_embedding_sparse.pkl")
     
     if not os.path.exists(index_path) or not os.path.exists(metadata_path):
-        raise FileNotFoundError(f"❌ Index Sparse manquant dans {embedding_dir}")
+        raise FileNotFoundError(f"Sparse index missing in {embedding_dir}")
     
     index = faiss.read_index(index_path)
     with open(metadata_path, "rb") as f:
@@ -108,18 +129,29 @@ def load_symptom_index_sparse():
     return index, metadata
 
 def get_similar_symptoms_sparse(query: str) -> List[tuple]:
-    """Trouve les symptômes similaires via FAISS dans KG Sparse"""
+    """
+    Find similar symptoms using FAISS search in Sparse KG structure.
+    
+    Performs semantic search specifically for sparse knowledge graph with
+    unique triplet ID tracking and equipment metadata for precise 1:1:1 matching.
+    
+    Args:
+        query (str): Search query for symptom matching
+        
+    Returns:
+        List[tuple]: List of (symptom_name, similarity_score, triplet_id, equipment) tuples
+    """
     try:
         model = get_model()
         index, metadata = load_symptom_index_sparse()
         symptom_names = metadata['symptom_names']
         symptoms_data = metadata['symptoms_data']
         
-        # Recherche vectorielle
+        # Vector search
         query_vec = model.encode([query], normalize_embeddings=True).astype("float32")
         scores, indices = index.search(query_vec, symptom_top_k * 2)
         
-        # Filtrage par seuil et formatage avec métadonnées Sparse (avec triplet_id)
+        # Threshold filtering and formatting with Sparse metadata (including triplet_id)
         results = []
         for i, score in zip(indices[0], scores[0]):
             if score >= threshold and i < len(symptoms_data):
@@ -127,7 +159,7 @@ def get_similar_symptoms_sparse(query: str) -> List[tuple]:
                 results.append((
                     symptom_data['name'], 
                     float(score),
-                    symptom_data['triplet_id'],  # 🆕 ID unique pour Sparse
+                    symptom_data['triplet_id'],  # Unique ID for Sparse
                     symptom_data['equipment']
                 ))
                 if len(results) >= symptom_top_k:
@@ -135,13 +167,22 @@ def get_similar_symptoms_sparse(query: str) -> List[tuple]:
         
         return results
     except Exception as e:
-        print(f"❌ Erreur recherche symptômes Sparse: {e}")
+        print(f"Error in Sparse symptom search: {e}")
         return []
 
 def query_neo4j_triplets_sparse(symptom: str, triplet_id: int) -> List[Dict]:
     """
-    🎯 Récupère LE triplet spécifique pour un symptôme dans KG Sparse
-    Dans Sparse: 1 symptôme avec triplet_id → 1 triplet exact (pas de propagation)
+    Retrieve the specific triplet for a symptom in Sparse KG.
+    
+    Executes precise Neo4j query to extract the exact triplet for given symptom
+    and triplet ID, maintaining 1:1:1 structure without semantic propagation.
+    
+    Args:
+        symptom (str): Symptom name for triplet retrieval
+        triplet_id (int): Unique triplet identifier for exact matching
+        
+    Returns:
+        List[Dict]: Single triplet dictionary with comprehensive metadata
     """
     driver = get_sparse_driver()
     try:
@@ -156,44 +197,47 @@ def query_neo4j_triplets_sparse(symptom: str, triplet_id: int) -> List[Dict]:
             triplets = [record.data() for record in result]
             return triplets
     except Exception as e:
-        print(f"❌ Erreur Neo4j Sparse: {e}")
+        print(f"Neo4j Sparse error: {e}")
         return []
     finally:
         driver.close()
 
-# === 🆕 FONCTION MULTI-QUERY FUSION SPARSE ===
+# Multi-Query Fusion Functions
 
 def get_symptoms_with_variants_sparse(filtered_query: str, query_variants: List[str]) -> List[tuple]:
     """
-    🆕 MULTI-QUERY FUSION SPARSE - Recherche symptoms avec query filtrée + variantes
-    Stratégie MAX Score adaptée pour structure 1:1:1
+    Multi-query fusion for Sparse symptom retrieval with MAX score strategy.
+    
+    Implements sophisticated multi-query fusion combining filtered queries and
+    variants with weighted scoring and MAX score selection optimized for
+    sparse 1:1:1 structure with unique triplet ID tracking.
     
     Args:
-        filtered_query: Query optimisée par LLM
-        query_variants: Liste des variantes générées par LLM
+        filtered_query (str): LLM-optimized query
+        query_variants (List[str]): List of query variants generated by LLM
         
     Returns:
-        List[tuple]: [(symptom_name, max_score, triplet_id, equipment), ...] top symptoms avec métadonnées Sparse
+        List[tuple]: Top symptoms with maximum scores and sparse metadata
     """
-    print(f"🔍 Multi-Query Fusion Sparse KG:")
-    print(f"🎯 Query filtrée: '{filtered_query}'")
-    print(f"🔄 Variantes: {query_variants}")
+    print(f"Multi-Query Fusion Sparse KG:")
+    print(f"Filtered query: '{filtered_query}'")
+    print(f"Variants: {query_variants}")
     
-    # Poids par source (query filtrée prioritaire)
+    # Weights by source (filtered query priority)
     weights = {
-        "filtered": 1.0,      # Query LLM optimisée = poids max
-        "variant": 0.8        # Variantes = poids réduit
+        "filtered": 1.0,      # LLM optimized query = max weight
+        "variant": 0.8        # Variants = reduced weight
     }
     
-    # Dict pour stocker les scores par (symptom_name, triplet_id) - clé unique Sparse
+    # Dict to store scores by (symptom_name, triplet_id) - unique Sparse key
     symptom_scores = {}
     
-    # 1. Recherche avec query filtrée (poids principal)
-    print(f"🎯 Recherche avec query filtrée...")
+    # 1. Search with filtered query (main weight)
+    print(f"Searching with filtered query...")
     filtered_symptoms = get_similar_symptoms_sparse(filtered_query)
     for symptom, score, triplet_id, equipment in filtered_symptoms:
         weighted_score = score * weights["filtered"]
-        # Clé unique pour Sparse: (symptom_name, triplet_id)
+        # Unique key for Sparse: (symptom_name, triplet_id)
         key = (symptom, triplet_id)
         symptom_scores[key] = {
             'score': weighted_score,
@@ -201,26 +245,26 @@ def get_symptoms_with_variants_sparse(filtered_query: str, query_variants: List[
             'triplet_id': triplet_id,
             'equipment': equipment
         }
-        print(f"   ✅ Filtered: {symptom} (ID:{triplet_id}) → {weighted_score:.3f}")
+        print(f"   Filtered: {symptom} (ID:{triplet_id}) → {weighted_score:.3f}")
     
-    # 2. Recherche avec variantes (poids réduit)
-    for i, variant in enumerate(query_variants[:2]):  # Max 2 variantes pour performance
-        if not variant or variant == filtered_query:  # Skip si vide ou identique
+    # 2. Search with variants (reduced weight)
+    for i, variant in enumerate(query_variants[:2]):  # Max 2 variants for performance
+        if not variant or variant == filtered_query:  # Skip if empty or identical
             continue
             
-        print(f"🔄 Recherche avec variante {i+1}: '{variant}'")
+        print(f"Searching with variant {i+1}: '{variant}'")
         variant_symptoms = get_similar_symptoms_sparse(variant)
         
         for symptom, score, triplet_id, equipment in variant_symptoms:
             weighted_score = score * weights["variant"]
             key = (symptom, triplet_id)
             
-            # STRATÉGIE MAX Score - garde le meilleur score pour ce symptom + triplet_id
+            # MAX Score strategy - keep best score for this symptom + triplet_id
             if key in symptom_scores:
                 old_score = symptom_scores[key]['score']
                 new_score = max(old_score, weighted_score)
                 symptom_scores[key]['score'] = new_score
-                print(f"   🔄 Variant{i+1}: {symptom} (ID:{triplet_id}) → MAX({old_score:.3f}, {weighted_score:.3f}) = {new_score:.3f}")
+                print(f"   Variant{i+1}: {symptom} (ID:{triplet_id}) → MAX({old_score:.3f}, {weighted_score:.3f}) = {new_score:.3f}")
             else:
                 symptom_scores[key] = {
                     'score': weighted_score,
@@ -228,25 +272,33 @@ def get_symptoms_with_variants_sparse(filtered_query: str, query_variants: List[
                     'triplet_id': triplet_id,
                     'equipment': equipment
                 }
-                print(f"   🆕 Variant{i+1}: {symptom} (ID:{triplet_id}) → {weighted_score:.3f}")
+                print(f"   New Variant{i+1}: {symptom} (ID:{triplet_id}) → {weighted_score:.3f}")
     
-    # 3. Tri et limitation par score final (format compatible avec logique Sparse)
+    # 3. Sort and limit by final score (compatible format with Sparse logic)
     sorted_symptoms = sorted(symptom_scores.values(), key=lambda x: x['score'], reverse=True)
     final_symptoms = sorted_symptoms[:symptom_top_k]
     
-    # Conversion au format attendu: (symptom_name, score, triplet_id, equipment)
+    # Convert to expected format: (symptom_name, score, triplet_id, equipment)
     result = [(s['symptom'], s['score'], s['triplet_id'], s['equipment']) for s in final_symptoms]
     
-    print(f"✅ Multi-Query Sparse: {len(result)} symptoms sélectionnés (top scores MAX)")
+    print(f"Multi-Query Sparse: {len(result)} symptoms selected (top MAX scores)")
     for i, (symptom, score, triplet_id, equipment) in enumerate(result, 1):
         print(f"   {i}. {symptom} (ID:{triplet_id}) → {score:.3f}")
     
     return result
 
-# === 🆕 FONCTIONS EQUIPMENT MATCHING (CONSERVÉES) ===
+# Equipment Matching Functions
 
 def _extract_kg_equipments_sparse() -> List[str]:
-    """Extrait tous les equipments uniques du KG Sparse"""
+    """
+    Extract all unique equipment from Sparse knowledge graph.
+    
+    Queries the Sparse knowledge graph to retrieve all unique equipment
+    identifiers for equipment matching operations with error handling.
+    
+    Returns:
+        List[str]: Unique equipment identifiers from Sparse KG
+    """
     try:
         driver = get_sparse_driver()
         with driver.session() as session:
@@ -258,11 +310,11 @@ def _extract_kg_equipments_sparse() -> List[str]:
             """)
             
             equipments = [record["equipment"] for record in result if record["equipment"]]
-            print(f"📊 {len(equipments)} equipments trouvés dans KG Sparse")
+            print(f"{len(equipments)} equipment found in Sparse KG")
             return equipments
             
     except Exception as e:
-        print(f"⚠️ Erreur extraction equipments Sparse: {e}")
+        print(f"Warning: Equipment extraction error for Sparse: {e}")
         return []
     finally:
         if 'driver' in locals():
@@ -271,14 +323,24 @@ def _extract_kg_equipments_sparse() -> List[str]:
 def _query_neo4j_triplets_sparse_with_equipment_filter(symptom: str, triplet_id: int, 
                                                       matched_equipment: Optional[str]) -> List[Dict]:
     """
-    🎯 Récupère LE triplet spécifique Sparse avec filtrage equipment optionnel
-    Structure 1:1:1 : 1 symptôme avec triplet_id → 1 triplet exact
+    Retrieve specific Sparse triplet with optional equipment filtering.
+    
+    Executes targeted Neo4j queries with equipment-based filtering when available,
+    maintaining 1:1:1 structure integrity with precise triplet ID matching.
+    
+    Args:
+        symptom (str): Symptom name for triplet retrieval
+        triplet_id (int): Unique triplet identifier
+        matched_equipment (Optional[str]): Equipment filter for targeted search
+        
+    Returns:
+        List[Dict]: Filtered triplets with equipment-specific relevance
     """
     driver = get_sparse_driver()
     try:
         with driver.session() as session:
             if matched_equipment:
-                # Requête filtrée par equipment ET triplet_id
+                # Equipment-filtered query with triplet_id
                 result = session.run("""
                     MATCH (s:Symptom {name: $symptom, triplet_id: $triplet_id})-[:CAUSES]->(c:Cause)-[:TREATED_BY]->(r:Remedy)
                     WHERE c.triplet_id = $triplet_id AND r.triplet_id = $triplet_id 
@@ -287,7 +349,7 @@ def _query_neo4j_triplets_sparse_with_equipment_filter(symptom: str, triplet_id:
                            s.equipment AS equipment, s.triplet_id AS triplet_id
                 """, symptom=symptom, triplet_id=triplet_id, equipment=matched_equipment)
             else:
-                # Requête globale par triplet_id (comportement actuel)
+                # Global query by triplet_id (current behavior)
                 result = session.run("""
                     MATCH (s:Symptom {name: $symptom, triplet_id: $triplet_id})-[:CAUSES]->(c:Cause)-[:TREATED_BY]->(r:Remedy)
                     WHERE c.triplet_id = $triplet_id AND r.triplet_id = $triplet_id
@@ -298,12 +360,12 @@ def _query_neo4j_triplets_sparse_with_equipment_filter(symptom: str, triplet_id:
             triplets = [record.data() for record in result]
             return triplets
     except Exception as e:
-        print(f"❌ Erreur Neo4j Sparse avec equipment: {e}")
+        print(f"Neo4j Sparse error with equipment: {e}")
         return []
     finally:
         driver.close()
 
-# === 🆕 FONCTION PRINCIPALE MULTI-QUERY + EQUIPMENT ===
+# Main Multi-Query Function
 
 def get_structured_context_with_variants_and_equipment_sparse(
     filtered_query: str,
@@ -313,86 +375,90 @@ def get_structured_context_with_variants_and_equipment_sparse(
     max_triplets: Optional[int] = None
 ) -> str:
     """
-    🆕 FONCTION PRINCIPALE - Multi-Query Fusion + Equipment Matching pour Sparse KG
+    Main function for multi-query fusion with equipment matching in Sparse KG.
+    
+    Implements comprehensive retrieval strategy combining multi-query fusion,
+    equipment matching, and direct 1:1:1 triplet retrieval for optimal
+    sparse knowledge graph context generation without semantic propagation.
     
     Args:
-        filtered_query: Query optimisée par LLM  
-        query_variants: Variantes générées par LLM
-        equipment_info: Infos equipment pour matching
-        format_type: Format de sortie ("detailed", "compact", "json")
-        max_triplets: Limite triplets finaux
+        filtered_query (str): LLM-optimized query
+        query_variants (List[str]): LLM-generated query variants
+        equipment_info (Dict): Equipment information for matching
+        format_type (str): Output format ("detailed", "compact", "json")
+        max_triplets (Optional[int]): Maximum number of triplets to return
         
     Returns:
-        str: Contexte KG Sparse formaté avec Multi-Query (structure 1:1:1)
+        str: Formatted Sparse KG context with multi-query results
     """
     try:
         if max_triplets is None:
             max_triplets = triplets_limit
         
-        print(f"🔍 Sparse KG avec Multi-Query Fusion + Equipment Matching")
+        print(f"Sparse KG with Multi-Query Fusion + Equipment Matching")
         
-        # === EQUIPMENT MATCHING (logique existante conservée) ===
+        # Equipment matching (existing logic preserved)
         matched_equipment = None
         if equipment_info and equipment_info.get('primary_equipment') != 'unknown':
             try:
                 from core.retrieval_graph.equipment_matcher import create_equipment_matcher
                 matcher = create_equipment_matcher()
                 
-                # Extraction des equipments disponibles dans le KG Sparse
+                # Extract available equipment from Sparse KG
                 kg_equipments = _extract_kg_equipments_sparse()
                 
                 if kg_equipments:
-                    # Matching LLM equipment → KG equipment
+                    # Match LLM equipment → KG equipment
                     matched_equipment = matcher.match_equipment(
                         equipment_info['primary_equipment'], 
                         kg_equipments
                     )
                     
                     if matched_equipment:
-                        print(f"🏭 Equipment match trouvé: '{matched_equipment}' (score > 0.9)")
+                        print(f"Equipment match found: '{matched_equipment}' (score > 0.9)")
                     else:
-                        print(f"🔍 Pas de match equipment (< 0.9), recherche globale")
+                        print(f"No equipment match (< 0.9), global search")
                 else:
-                    print("⚠️ Aucun equipment trouvé dans le KG Sparse")
+                    print("No equipment found in Sparse KG")
                     
             except Exception as e:
-                print(f"⚠️ Equipment matching échoué: {e}, fallback global")
+                print(f"Warning: Equipment matching failed: {e}, fallback to global")
                 matched_equipment = None
         
-        # === 🆕 RECHERCHE MULTI-QUERY SPARSE ===
+        # Multi-query search Sparse
         similar_symptoms = get_symptoms_with_variants_sparse(filtered_query, query_variants)
         
         if not similar_symptoms:
             return "No relevant structured information found with multi-query approach."
         
-        # === RÉCUPÉRATION TRIPLETS EXACTS (structure 1:1:1 avec equipment filter) ===
+        # Exact triplet retrieval (1:1:1 structure with equipment filter)
         all_triplets = []
         seen = set()
         
         for symptom_name, similarity_score, triplet_id, equipment in similar_symptoms:
-            # Recherche du triplet exact correspondant (avec equipment filter)
+            # Search for exact corresponding triplet (with equipment filter)
             triplets = _query_neo4j_triplets_sparse_with_equipment_filter(
                 symptom_name, triplet_id, matched_equipment
             )
             
             for triplet in triplets:
-                # Clé unique basée sur triplet_id (structure Sparse)
+                # Unique key based on triplet_id (Sparse structure)
                 triplet_key = triplet['triplet_id']
                 if triplet_key not in seen:
                     seen.add(triplet_key)
                     triplet['similarity_score'] = similarity_score
                     all_triplets.append(triplet)
         
-        # === LIMITATION SIMPLE (déjà ordonné par pertinence Multi-Query) ===
+        # Simple limitation (already ordered by Multi-Query relevance)
         if len(all_triplets) > max_triplets:
             selected = all_triplets[:max_triplets]
         else:
             selected = all_triplets
         
         equipment_info_str = f" (equipment: {matched_equipment})" if matched_equipment else " (global search)"
-        print(f"✅ {len(selected)} triplets Sparse sélectionnés avec Multi-Query{equipment_info_str}")
+        print(f"{len(selected)} Sparse triplets selected with Multi-Query{equipment_info_str}")
         
-        # === FORMATAGE ===
+        # Formatting
         if format_type == "json":
             import json
             return json.dumps(selected, indent=2, ensure_ascii=False)
@@ -424,26 +490,38 @@ def get_structured_context_with_variants_and_equipment_sparse(
                 return "No structured context available with multi-query approach."
         
     except Exception as e:
-        print(f"❌ Erreur Multi-Query Sparse KG: {e}")
-        # Fallback vers fonction single-query
-        print("🔄 Fallback vers recherche single-query...")
+        print(f"Error in Multi-Query Sparse KG: {e}")
+        # Fallback to single-query function
+        print("Fallback to single-query search...")
         return get_structured_context_sparse_with_equipment(filtered_query, equipment_info, format_type, max_triplets)
 
-# === FONCTIONS SINGLE-QUERY (CONSERVÉES POUR RÉTROCOMPATIBILITÉ) ===
+# Single-Query Functions (Preserved for Backward Compatibility)
 
 def get_structured_context_sparse_with_equipment(query: str, equipment_info: Dict, 
                                                 format_type: str = "detailed", 
                                                 max_triplets: Optional[int] = None) -> str:
     """
-    🎯 FONCTION SINGLE-QUERY avec Equipment Matching (logique existante conservée)
+    Single-query function with equipment matching (existing logic preserved).
+    
+    Provides backward compatibility for single-query operations with equipment
+    matching capabilities for targeted Sparse knowledge graph retrieval.
+    
+    Args:
+        query (str): Single search query
+        equipment_info (Dict): Equipment information for matching
+        format_type (str): Output format specification
+        max_triplets (Optional[int]): Maximum triplet limit
+        
+    Returns:
+        str: Formatted Sparse context with equipment filtering
     """
     try:
         if max_triplets is None:
             max_triplets = triplets_limit
         
-        print(f"🔍 Sparse KG avec Single-Query + Equipment Matching")
+        print(f"Sparse KG with Single-Query + Equipment Matching")
         
-        # === EQUIPMENT MATCHING ===
+        # Equipment matching
         matched_equipment = None
         if equipment_info and equipment_info.get('primary_equipment') != 'unknown':
             try:
@@ -459,20 +537,20 @@ def get_structured_context_sparse_with_equipment(query: str, equipment_info: Dic
                     )
                     
                     if matched_equipment:
-                        print(f"🏭 Equipment match trouvé: '{matched_equipment}' (score > 0.9)")
+                        print(f"Equipment match found: '{matched_equipment}' (score > 0.9)")
                     else:
-                        print(f"🔍 Pas de match equipment (< 0.9), recherche globale")
+                        print(f"No equipment match (< 0.9), global search")
                         
             except Exception as e:
-                print(f"⚠️ Equipment matching échoué: {e}, fallback global")
+                print(f"Warning: Equipment matching failed: {e}, fallback to global")
                 matched_equipment = None
         
-        # === RECHERCHE SINGLE-QUERY ===
+        # Single-query search
         similar_symptoms = get_similar_symptoms_sparse(query)
         if not similar_symptoms:
             return "No relevant structured information found in Sparse Knowledge Base."
         
-        # === RÉCUPÉRATION TRIPLETS EXACTS ===
+        # Exact triplet retrieval
         all_triplets = []
         seen = set()
         
@@ -488,16 +566,16 @@ def get_structured_context_sparse_with_equipment(query: str, equipment_info: Dic
                     triplet['similarity_score'] = similarity_score
                     all_triplets.append(triplet)
         
-        # === LIMITATION SIMPLE ===
+        # Simple limitation
         if len(all_triplets) > max_triplets:
             selected = all_triplets[:max_triplets]
         else:
             selected = all_triplets
         
         equipment_info_str = f" (equipment: {matched_equipment})" if matched_equipment else " (global search)"
-        print(f"✅ {len(selected)} triplets Sparse sélectionnés{equipment_info_str}")
+        print(f"{len(selected)} Sparse triplets selected{equipment_info_str}")
         
-        # === FORMATAGE ===
+        # Formatting
         if format_type == "json":
             import json
             return json.dumps(selected, indent=2, ensure_ascii=False)
@@ -528,53 +606,63 @@ def get_structured_context_sparse_with_equipment(query: str, equipment_info: Dic
                 return "No structured context available in Sparse KB."
     
     except Exception as e:
-        print(f"❌ Erreur Sparse KG avec equipment: {e}")
-        # Fallback vers fonction originale
-        print("🔄 Fallback vers recherche Sparse globale...")
+        print(f"Error in Sparse KG with equipment: {e}")
+        # Fallback to original function
+        print("Fallback to global Sparse search...")
         return get_structured_context_sparse_original(query, format_type, max_triplets)
 
 def get_structured_context_sparse_original(query: str, format_type: str = "detailed", 
                                           max_triplets: Optional[int] = None) -> str:
     """
-    🎯 Fonction originale INCHANGÉE pour rétrocompatibilité
-    Recherche dans KG Sparse: AUCUNE propagation sémantique, structure 1:1:1 pure
+    Original function unchanged for backward compatibility.
+    
+    Maintains original Sparse functionality for legacy compatibility with
+    direct 1:1:1 structure search without semantic propagation.
+    
+    Args:
+        query (str): Search query string
+        format_type (str): Output format specification
+        max_triplets (Optional[int]): Maximum triplet limit
+        
+    Returns:
+        str: Original Sparse knowledge graph context
     """
     try:
         if max_triplets is None:
             max_triplets = triplets_limit
         
-        print(f"🔍 Recherche dans KG SPARSE (structure 1:1:1)")
+        print(f"Searching in SPARSE KG (1:1:1 structure)")
         
-        # 1. Recherche symptômes similaires (avec triplet_id)
+        # 1. Search similar symptoms (with triplet_id)
         similar_symptoms = get_similar_symptoms_sparse(query)
         if not similar_symptoms:
             return "No relevant structured information found in Sparse Knowledge Base."
         
-        # 2. Récupération triplets exacts (1:1 mapping)
+        # 2. Exact triplet retrieval (1:1 mapping)
         all_triplets = []
         seen = set()
         
         for symptom_name, similarity_score, triplet_id, equipment in similar_symptoms:
-            # Recherche du triplet exact correspondant
+            # Search for exact corresponding triplet
             triplets = query_neo4j_triplets_sparse(symptom_name, triplet_id)
             
             for triplet in triplets:
-                # Clé unique basée sur triplet_id (pas de déduplication par contenu)
+                # Unique key based on triplet_id (no content deduplication)
                 triplet_key = triplet['triplet_id']
                 if triplet_key not in seen:
                     seen.add(triplet_key)
                     triplet['similarity_score'] = similarity_score
                     all_triplets.append(triplet)
         
-        # 3. Limitation simple (pas de tri complexe - déjà ordonné par pertinence)
+        # 3. Simple limitation (no complex sorting - already ordered by relevance)
         if len(all_triplets) > max_triplets:
             selected = all_triplets[:max_triplets]
         else:
             selected = all_triplets
         
-        print(f"✅ {len(selected)} triplets Sparse sélectionnés")
+        print(f"{len(selected)} Sparse triplets selected")
         
-        # 4. Formatage
+        # 4. Formatting
         if format_type == "json":
             import json
             return json.dumps(selected, indent=2, ensure_ascii=False)
@@ -604,10 +692,10 @@ def get_structured_context_sparse_original(query: str, format_type: str = "detai
                 return "No structured context available in Sparse KB."
     
     except Exception as e:
-        print(f"❌ Erreur Sparse KG: {e}")
+        print(f"Error in Sparse KG: {e}")
         return f"Error retrieving Sparse context: {str(e)}"
 
-# === 🎯 INTERFACES PUBLIQUES (3 NIVEAUX) ===
+# Public Interfaces (3 Levels)
 
 def get_structured_context_sparse_with_multi_query(
     filtered_query: str,
@@ -616,8 +704,20 @@ def get_structured_context_sparse_with_multi_query(
     format_type: str = "detailed",
     max_triplets: Optional[int] = None) -> str:
     """
-    🎯 INTERFACE MULTI-QUERY - Nouvelle interface principale
-    Utilisée par les générateurs RAG quand processed_query disponible
+    Multi-query interface - new main interface.
+    
+    Primary interface for RAG generators when processed_query is available
+    with comprehensive multi-query fusion and equipment matching for Sparse KG.
+    
+    Args:
+        filtered_query (str): LLM-optimized query
+        query_variants (List[str]): Query variants for fusion
+        equipment_info (Dict): Equipment matching information
+        format_type (str): Output format specification
+        max_triplets (Optional[int]): Maximum triplet limit
+        
+    Returns:
+        str: Multi-query Sparse knowledge graph context
     """
     return get_structured_context_with_variants_and_equipment_sparse(
         filtered_query, query_variants, equipment_info, format_type, max_triplets
@@ -627,20 +727,41 @@ def get_structured_context_sparse_with_equipment_filter(query: str, equipment_in
                                                         format_type: str = "detailed", 
                                                         max_triplets: Optional[int] = None) -> str:
     """
-    🎯 INTERFACE SINGLE-QUERY + EQUIPMENT - Rétrocompatibilité
-    Utilisée par les générateurs RAG en mode single-query avec equipment
+    Single-query + equipment interface - backward compatibility.
+    
+    Interface for RAG generators in single-query mode with equipment
+    matching for targeted Sparse knowledge graph retrieval.
+    
+    Args:
+        query (str): Single search query
+        equipment_info (Dict): Equipment matching information
+        format_type (str): Output format specification
+        max_triplets (Optional[int]): Maximum triplet limit
+        
+    Returns:
+        str: Equipment-filtered Sparse context
     """
     return get_structured_context_sparse_with_equipment(query, equipment_info, format_type, max_triplets)
 
 def get_structured_context_sparse(query: str, format_type: str = "detailed", 
                                  max_triplets: Optional[int] = None) -> str:
     """
-    🎯 INTERFACE ORIGINALE - Rétrocompatibilité totale
-    Utilisée par les anciens appels et mode classique
+    Original interface - total backward compatibility.
+    
+    Interface for legacy calls and classic mode operations with original
+    Sparse functionality and direct 1:1:1 structure retrieval.
+    
+    Args:
+        query (str): Search query string
+        format_type (str): Output format specification
+        max_triplets (Optional[int]): Maximum triplet limit
+        
+    Returns:
+        str: Original Sparse knowledge graph context
     """
     return get_structured_context_sparse_original(query, format_type, max_triplets)
 
-# === TEST CLI SIMPLE ===
+# CLI Testing
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
@@ -658,5 +779,5 @@ if __name__ == "__main__":
         )
         print(result)
     else:
-        print("Usage: python sparse_kg_querier.py 'votre requête'")
-        print("Exemple: python sparse_kg_querier.py 'motor overheating FANUC'")
+        print("Usage: python sparse_kg_querier.py 'your query'")
+        print("Example: python sparse_kg_querier.py 'motor overheating FANUC'")

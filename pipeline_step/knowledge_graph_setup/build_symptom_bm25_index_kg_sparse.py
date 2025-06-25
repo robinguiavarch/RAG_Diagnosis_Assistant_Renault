@@ -1,14 +1,19 @@
 """
-Construction index BM25 des symptômes pour KG Sparse - Version Simple
-Pour lancer:
-docker run --rm \
-  -v $(pwd)/.env:/app/.env \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/pipeline_step:/app/pipeline_step \
-  --network host \
-  diagnosis-app \
-  poetry run python pipeline_step/knowledge_graph_setup/build_symptom_bm25_index_kg_sparse.py
+BM25 Index Construction for Sparse Knowledge Graph Symptoms
+
+This module constructs a BM25 lexical search index specifically for the Sparse Knowledge Graph
+configuration. The index is built using individual symptom texts from the 1:1:1 structure,
+providing lexical search capabilities for the hybrid metric system in sparse configurations.
+
+Key components:
+- Sparse symptom extraction: Retrieval of symptom texts with triplet IDs from Neo4j
+- BM25 index construction: Whoosh-based lexical indexing with simplified schema
+- Cloud/local connection management: Intelligent fallback system for database connectivity
+
+Dependencies: neo4j, whoosh, pyyaml, python-dotenv
+Usage: docker run --rm -v $(pwd)/.env:/app/.env -v $(pwd)/data:/app/data 
+       -v $(pwd)/config:/app/config -v $(pwd)/pipeline_step:/app/pipeline_step 
+       --network host diagnosis-app poetry run python pipeline_step/knowledge_graph_setup/build_symptom_bm25_index_kg_sparse.py
 """
 
 import os
@@ -22,7 +27,12 @@ from whoosh.analysis import StandardAnalyzer
 load_dotenv()
 
 def load_settings():
-    """Charge la configuration"""
+    """
+    Load system configuration from settings file
+    
+    Returns:
+        dict: Loaded configuration settings
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(script_dir, "..", "..", "config", "settings.yaml")
     with open(config_path, 'r', encoding='utf-8') as file:
@@ -30,16 +40,24 @@ def load_settings():
 
 def get_neo4j_connection(kg_type="sparse"):
     """
-    🌐 Connexion intelligente Cloud/Local
-    kg_type: "dense", "sparse", ou "dense_sc"
+    Establish intelligent Cloud/Local Neo4j connection
+    
+    Implements cloud-first connection strategy with automatic local fallback.
+    Supports multiple Knowledge Graph types with appropriate credential selection.
+    
+    Args:
+        kg_type (str): Knowledge Graph type ("dense", "sparse", or "dense_sc")
+        
+    Returns:
+        neo4j.Driver: Configured Neo4j database driver
     """
     load_dotenv()
     
-    # Priorité au Cloud si activé
+    # Priority to Cloud if enabled
     cloud_enabled = os.getenv("NEO4J_CLOUD_ENABLED", "false").lower() == "true"
     
     if cloud_enabled:
-        print(f"🌐 MODE CLOUD pour {kg_type.upper()}")
+        print(f"CLOUD MODE for {kg_type.upper()}")
         
         if kg_type == "dense":
             uri = os.getenv("NEO4J_DENSE_CLOUD_URI")
@@ -52,14 +70,14 @@ def get_neo4j_connection(kg_type="sparse"):
             password = os.getenv("NEO4J_DENSE_SC_CLOUD_PASS")
         
         if uri and password:
-            print(f"🔌 Connexion Cloud {kg_type}: {uri}")
+            print(f"Cloud connection {kg_type}: {uri}")
             return GraphDatabase.driver(uri, auth=("neo4j", password))
         else:
-            print(f"❌ Credentials cloud manquants pour {kg_type}")
+            print(f"Missing cloud credentials for {kg_type}")
             cloud_enabled = False
     
-    # Fallback Local
-    print(f"🏠 MODE LOCAL pour {kg_type.upper()}")
+    # Local fallback
+    print(f"LOCAL MODE for {kg_type.upper()}")
     
     if kg_type == "dense":
         uri = os.getenv("NEO4J_URI_DENSE", "bolt://host.docker.internal:7687")
@@ -74,12 +92,21 @@ def get_neo4j_connection(kg_type="sparse"):
         user = os.getenv("NEO4J_USER_DENSE_SC", "neo4j")
         password = os.getenv("NEO4J_PASS_DENSE_SC", "password")
     
-    print(f"🔌 Connexion Local {kg_type}: {uri}")
+    print(f"Local connection {kg_type}: {uri}")
     return GraphDatabase.driver(uri, auth=(user, password))
 
 def extract_symptoms_from_kg_sparse():
-    """Extrait tous les symptômes du KG Sparse (avec doublons)"""
-    print("📊 Extraction des symptômes du KG Sparse...")
+    """
+    Extract all symptoms from Sparse Knowledge Graph including duplicates
+    
+    Retrieves symptom nodes from the Sparse KG maintaining the 1:1:1 structure
+    where each triplet has its own symptom instance. This preserves the original
+    sparse structure for accurate lexical indexing.
+    
+    Returns:
+        list: List of symptom dictionaries with triplet IDs and equipment metadata
+    """
+    print("Extracting symptoms from Sparse KG...")
     
     driver = get_neo4j_connection("sparse")
     try:
@@ -100,34 +127,46 @@ def extract_symptoms_from_kg_sparse():
                     'equipment': record['equipment'] or 'unknown'
                 })
             
-            print(f"✅ {len(symptoms)} symptômes Sparse extraits (avec doublons)")
+            print(f"Extracted {len(symptoms)} Sparse symptoms (including duplicates)")
             return symptoms
             
     except Exception as e:
-        print(f"❌ Erreur extraction Sparse: {e}")
+        print(f"Error extracting Sparse: {e}")
         return []
     finally:
         driver.close()
 
 def build_symptom_bm25_index_sparse():
-    """Construit l'index BM25 des symptômes Sparse"""
-    print("🚀 Construction de l'index BM25 des symptômes Sparse...")
+    """
+    Construct BM25 index for Sparse symptoms
     
-    # Configuration - 🔧 CORRECTION DU CHEMIN
+    Creates a Whoosh-based BM25 lexical search index using individual symptom texts
+    from the Sparse Knowledge Graph. The index maintains the 1:1:1 structure for
+    accurate sparse similarity calculations in the hybrid metric system.
+    
+    Returns:
+        str: Path to the created BM25 index directory
+        
+    Raises:
+        ValueError: When no symptoms are found in the Sparse Knowledge Graph
+    """
+    print("Constructing Sparse symptom BM25 index...")
+    
+    # Configuration - corrected path
     config = load_settings()
-    index_path = config["paths"]["bm25_sparse_index_path"]  # 🆕 CHEMIN CORRIGÉ
+    index_path = config["paths"]["bm25_sparse_index_path"]  # Corrected path
     
-    # Création du répertoire
+    # Directory creation
     os.makedirs(index_path, exist_ok=True)
     
-    # Schéma simple
+    # Simple schema for sparse structure
     schema = Schema(
         symptom_id=ID(stored=True, unique=True),
         symptom_text=TEXT(analyzer=StandardAnalyzer(), stored=True),
         equipment=ID(stored=True)
     )
     
-    # Suppression index existant
+    # Remove existing index
     if exists_in(index_path):
         import shutil
         shutil.rmtree(index_path)
@@ -135,12 +174,12 @@ def build_symptom_bm25_index_sparse():
     
     ix = create_in(index_path, schema)
     
-    # Extraction et indexation
+    # Extraction and indexing
     symptoms = extract_symptoms_from_kg_sparse()
     if not symptoms:
-        raise ValueError("Aucun symptôme trouvé dans le KG Sparse")
+        raise ValueError("No symptoms found in Sparse KG")
     
-    print(f"📝 Indexation de {len(symptoms)} symptômes Sparse...")
+    print(f"Indexing {len(symptoms)} Sparse symptoms...")
     writer = ix.writer()
     
     for symptom in symptoms:
@@ -152,24 +191,30 @@ def build_symptom_bm25_index_sparse():
     
     writer.commit()
     
-    print(f"✅ Index BM25 Sparse créé: {index_path}")
-    print(f"📊 Symptômes indexés: {len(symptoms)} (structure 1:1:1)")
+    print(f"Sparse BM25 index created: {index_path}")
+    print(f"Indexed symptoms: {len(symptoms)} (1:1:1 structure)")
     
     return index_path
 
 def main():
-    """Pipeline principal"""
-    print("🚀 CONSTRUCTION INDEX BM25 SYMPTÔMES - KG SPARSE")
+    """
+    Main pipeline for Sparse BM25 index construction
+    
+    Orchestrates the complete process of extracting symptoms from the Sparse
+    Knowledge Graph and constructing the corresponding BM25 lexical search index.
+    Provides comprehensive error handling and progress reporting.
+    """
+    print("BM25 SYMPTOM INDEX CONSTRUCTION - SPARSE KG")
     print("=" * 55)
     
     try:
         index_path = build_symptom_bm25_index_sparse()
-        print(f"\n✅ CONSTRUCTION TERMINÉE !")
-        print(f"📁 Index créé: {index_path}")
-        print("🎯 Prêt pour la recherche hybride Sparse")
+        print(f"\nCONSTRUCTION COMPLETED")
+        print(f"Index created: {index_path}")
+        print("Ready for Sparse hybrid search")
         
     except Exception as e:
-        print(f"❌ ERREUR: {e}")
+        print(f"ERROR: {e}")
         import traceback
         traceback.print_exc()
 

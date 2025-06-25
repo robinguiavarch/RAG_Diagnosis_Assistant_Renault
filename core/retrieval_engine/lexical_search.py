@@ -1,3 +1,21 @@
+"""
+Lexical Search: BM25-Based Document Retrieval System
+
+This module provides comprehensive lexical search capabilities using the BM25 algorithm
+through Whoosh indexing. It implements robust query processing, index management,
+and result formatting with comprehensive metadata support for the RAG diagnosis system.
+
+Key components:
+- BM25 retrieval with configurable scoring parameters and result filtering
+- Robust query cleaning and parsing with fallback mechanisms
+- Comprehensive index statistics and document counting capabilities
+- Enhanced result formatting with quality metrics and source attribution
+- Debug modes for search analysis and performance monitoring
+
+Dependencies: whoosh, pathlib, json
+Usage: Import BM25Retriever for lexical search operations with enriched metadata support
+"""
+
 from pathlib import Path
 from typing import List, Dict, Union
 import json
@@ -7,20 +25,34 @@ from whoosh.index import open_dir, exists_in
 from whoosh.qparser import QueryParser
 from whoosh.analysis import StandardAnalyzer
 from whoosh import scoring
-from whoosh.query import Or, Term, Every  # ← AJOUTER Every ici
+from whoosh.query import Or, Term, Every
 
 
 class BM25Retriever:
+    """
+    BM25-based lexical retriever with robust query processing and metadata support.
+    
+    Implements comprehensive BM25 search functionality with enhanced query cleaning,
+    result formatting, and index management capabilities for optimal performance
+    in the RAG diagnosis system.
+    """
+    
     def __init__(self, index_dir: Union[str, Path]):
         """
-        Initialise le retriever BM25
+        Initialize BM25 retriever with index loading and schema validation.
+        
+        Sets up the retriever with enriched schema support and validates
+        the existence of the required Whoosh index directory.
         
         Args:
-            index_dir: Répertoire contenant l'index Whoosh créé par le script 04
+            index_dir (Union[str, Path]): Directory containing Whoosh index created by indexing script
+            
+        Raises:
+            FileNotFoundError: If BM25 index is not found in specified directory
         """
         self.index_dir = Path(index_dir)
         
-        # Schéma enrichi compatible avec le nouveau format
+        # Enriched schema compatible with new format
         self.schema = Schema(
             document_id=ID(stored=True),
             chunk_id=ID(stored=True),
@@ -32,17 +64,26 @@ class BM25Retriever:
             chunking_method=ID(stored=True)
         )
 
-        # Chargement de l'index existant
+        # Load existing index
         if not exists_in(self.index_dir):
             raise FileNotFoundError(
-                f"Index BM25 non trouvé dans {self.index_dir}. "
-                f"Exécutez d'abord: poetry run python scripts/04_index_bm25.py"
+                f"BM25 index not found in {self.index_dir}. "
+                f"Run first: poetry run python scripts/04_index_bm25.py"
             )
         
         self.index = open_dir(self.index_dir)
 
     def _get_index_stats(self) -> Dict[str, int]:
-        """Retourne des statistiques sur l'index - VERSION CORRIGÉE"""
+        """
+        Return comprehensive index statistics with corrected document counting.
+        
+        Computes accurate statistics about the index including total chunks,
+        unique documents, and average chunks per document using robust
+        query mechanisms with fallback support.
+        
+        Returns:
+            Dict[str, int]: Index statistics including counts and averages
+        """
         try:
             with self.index.searcher() as searcher:
                 total_docs = searcher.doc_count()
@@ -50,12 +91,12 @@ class BM25Retriever:
                 if total_docs == 0:
                     return {"total_chunks": 0, "unique_documents": 0, "avg_chunks_per_doc": 0}
                 
-                # MÉTHODE CORRIGÉE : utiliser Every() pour récupérer tous les documents
+                # Corrected method: use Every() to retrieve all documents
                 try:
                     all_docs_query = Every()
-                    results = searcher.search(all_docs_query, limit=None)  # Pas de limite
+                    results = searcher.search(all_docs_query, limit=None)  # No limit
                     
-                    # Compter les documents uniques
+                    # Count unique documents
                     doc_ids = set()
                     for hit in results:
                         doc_id = hit.get("document_id", "unknown")
@@ -69,8 +110,8 @@ class BM25Retriever:
                     }
                     
                 except Exception:
-                    # Fallback : estimation simple si Every() ne marche pas
-                    estimated_docs = max(1, total_docs // 10)  # ~10 chunks par doc
+                    # Fallback: simple estimation if Every() doesn't work
+                    estimated_docs = max(1, total_docs // 10)  # ~10 chunks per doc
                     return {
                         "total_chunks": total_docs,
                         "unique_documents": estimated_docs,
@@ -82,15 +123,18 @@ class BM25Retriever:
 
     def search(self, query: str, top_k: int = 5, min_score: float = 0.0) -> List[Dict[str, Union[str, float]]]:
         """
-        Recherche dans l'index BM25
+        Perform BM25 search with comprehensive result formatting and filtering.
+        
+        Executes lexical search using BM25 scoring with robust query processing,
+        result filtering, and enriched metadata extraction for optimal performance.
         
         Args:
-            query: Requête de recherche
-            top_k: Nombre maximum de résultats
-            min_score: Score minimum pour filtrer les résultats
+            query (str): Search query string
+            top_k (int): Maximum number of results to return
+            min_score (float): Minimum score threshold for result filtering
             
         Returns:
-            Liste des chunks trouvés avec métadonnées
+            List[Dict[str, Union[str, float]]]: List of found chunks with comprehensive metadata
         """
         if not query.strip():
             return []
@@ -99,28 +143,28 @@ class BM25Retriever:
             with self.index.searcher(weighting=scoring.BM25F()) as searcher:
                 parser = QueryParser("content", schema=self.schema)
                 
-                # Nettoyage de la requête pour éviter les erreurs de parsing
+                # Query cleaning to avoid parsing errors
                 cleaned_query = self._clean_query(query)
                 
                 try:
                     parsed_query = parser.parse(cleaned_query)
                 except Exception:
-                    # Fallback: recherche simple par termes si parsing échoue
+                    # Fallback: simple term search if parsing fails
                     words = query.split()
                     terms = [Term("content", word.lower()) for word in words if word.strip()]
                     if not terms:
                         return []
                     parsed_query = Or(terms)
                 
-                # Recherche avec limite
+                # Search with limit
                 results = searcher.search(parsed_query, limit=max(top_k * 2, 20))
                 
-                # Formatage des résultats avec métadonnées enrichies
+                # Result formatting with enriched metadata
                 formatted_results = []
                 for hit in results:
                     score = float(hit.score)
                     
-                    # Filtrage par score minimum
+                    # Minimum score filtering
                     if score < min_score:
                         continue
                     
@@ -137,7 +181,7 @@ class BM25Retriever:
                     }
                     formatted_results.append(result)
                     
-                    # Limite après filtrage
+                    # Limit after filtering
                     if len(formatted_results) >= top_k:
                         break
                 
@@ -147,23 +191,34 @@ class BM25Retriever:
             return []
 
     def _clean_query(self, query: str) -> str:
-        """Nettoie la requête pour éviter les erreurs de parsing Whoosh"""
-        # Remplacer les caractères problématiques
+        """
+        Clean query string to prevent Whoosh parsing errors.
+        
+        Removes or replaces problematic characters that could cause parsing
+        failures in Whoosh query processing, ensuring robust search operation.
+        
+        Args:
+            query (str): Raw query string to clean
+            
+        Returns:
+            str: Cleaned query string safe for Whoosh parsing
+        """
+        # Replace problematic characters
         replacements = {
-            '"': '',  # Guillemets problématiques
+            '"': '',  # Problematic quotes
             "'": '',  # Apostrophes
-            '(': '',  # Parenthèses
+            '(': '',  # Parentheses
             ')': '',
-            '[': '',  # Crochets
+            '[': '',  # Brackets
             ']': '',
-            '{': '',  # Accolades
+            '{': '',  # Braces
             '}': '',
-            ':': ' ',  # Deux points peuvent causer des problèmes
+            ':': ' ',  # Colons can cause problems
             ';': ' ',
-            '!': '',   # Points d'exclamation
-            '?': '',   # Points d'interrogation
+            '!': '',   # Exclamation marks
+            '?': '',   # Question marks
             '*': '',   # Wildcards
-            '+': ' ',  # Opérateurs
+            '+': ' ',  # Operators
             '-': ' ',
             '/': ' ',  # Slashes
             '\\': ' ',
@@ -175,17 +230,38 @@ class BM25Retriever:
         for char, replacement in replacements.items():
             cleaned = cleaned.replace(char, replacement)
         
-        # Supprimer les espaces multiples
+        # Remove multiple spaces
         cleaned = ' '.join(cleaned.split())
         
         return cleaned.strip()
 
     def get_document_stats(self) -> Dict[str, int]:
-        """Retourne des statistiques sur l'index"""
+        """
+        Return comprehensive document statistics for index monitoring.
+        
+        Provides access to index statistics for performance monitoring,
+        capacity planning, and system health assessment.
+        
+        Returns:
+            Dict[str, int]: Complete index statistics and metrics
+        """
         return self._get_index_stats()
 
     def debug_search(self, query: str, top_k: int = 3) -> Dict:
-        """Version debug de la recherche avec informations détaillées"""
+        """
+        Debug version of search with detailed information and analysis.
+        
+        Provides comprehensive search debugging including query processing
+        details, index statistics, and result analysis for troubleshooting
+        and performance optimization.
+        
+        Args:
+            query (str): Search query for debugging
+            top_k (int): Number of results for analysis
+            
+        Returns:
+            Dict: Complete debug information including query processing and results
+        """
         results = self.search(query, top_k)
         
         debug_info = {

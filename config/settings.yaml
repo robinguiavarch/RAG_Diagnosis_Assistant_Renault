@@ -1,13 +1,39 @@
-# Configuration principale du système RAG
-# Mise à jour avec support du re-ranking, pipeline complet et évaluation LLM
+# Configuration Parameters Overview:
+#
+# Core System Configuration:
+# - paths: File system paths for documents, embeddings, indexes, and knowledge graph data
+# - chunking: Document segmentation parameters including size, overlap, and tokenization method
+# - models: Machine learning model specifications for embeddings, reranking, and generation
+#
+# Query Processing and LLM Integration:
+# - query_processing: LLM-based query filtering and enhancement configuration
+# - evaluation: LLM judge parameters for response quality assessment with consistency controls
+#
+# Retrieval System Configuration:
+# - enhanced_retrieval: Pool sizes and final result limits for multi-stage retrieval
+# - retrieval: Sparse/dense fusion parameters and ranking methods
+# - graph_retrieval: Knowledge graph symptom search thresholds and fallback strategies
+# - hybrid_symptom_search: Multi-modal search combining BM25, FAISS, and Levenshtein distance
+#
+# Equipment and Knowledge Graph Management:
+# - equipment_matching: Equipment entity matching thresholds and filtering strategies
+# - kg_construction_hybrid: Hybrid metric parameters for knowledge graph construction
+# - neo4j: Database connectivity for cloud and local Neo4j instances
+#
+# Generation and Post-Processing:
+# - reranking: Cross-encoder reranking parameters and fallback mechanisms
+# - generation: Context management, prompt configuration, and output constraints
+
+# Main RAG System Configuration
+# Updated with re-ranking support, complete pipeline, and LLM evaluation capabilities
 
 paths:
-  # Documents sources
+  # Source documents
   raw_documents: data/documents/source_pdfs/
   json_documents: data/documents/extracted_json/
   chunk_documents: data/documents/processed_chunks/
   
-  # Index et embeddings
+  # Indexes and embeddings
   embeddings_dir: data/indexes/embeddings/
   embedding_file: data/indexes/embeddings/metadata.pkl
   bm25_index: data/indexes/lexical_bm25/
@@ -19,95 +45,87 @@ paths:
   symptom_dense_sc_dir: data/knowledge_base/symptom_embedding_dense_sc/
   symptom_sparse_dir: data/knowledge_base/symptom_embedding_sparse/
   scr_triplets: data/knowledge_base/scr_triplets/
-  bm25_index_path: data/knowledge_base/symptom_bm25_dense/     # KG Dense standard
-  bm25_sparse_index_path: data/knowledge_base/symptom_bm25_sparse/  # KG Sparse
-  bm25_dense_sc_index_path: data/knowledge_base/symptom_bm25_dense_sc/  # KG Dense S&C
+  bm25_index_path: data/knowledge_base/symptom_bm25_dense/
+  bm25_sparse_index_path: data/knowledge_base/symptom_bm25_sparse/
+  bm25_dense_sc_index_path: data/knowledge_base/symptom_bm25_dense_sc/
 
-  # Sortie
+  # Output
   outputs: data/outputs/
-
 
 chunking:
   chunk_size: 200       
   overlap: 100          
   tokenize_by: sentence  # word | sentence
 
-# ===============================
-# 🆕 CONFIGURATION LLM FILTRE 
-# ===============================
+# Query Processing and LLM Filter Configuration
 query_processing:
   llm:
-    provider: "openai"              # Provider LLM (openai uniquement pour l'instant)
-    model: "gpt-4o"            # Modèle rapide et efficace pour le préprocessing
-    api_key: ${OPENAI_API_KEY}      # Clé API depuis .env
-    temperature: 0.1                # Précision pour extraction (faible créativité)
-    max_tokens: 1000                # Limite tokens pour réponse JSON
-    timeout: 30                     # Timeout en secondes
+    provider: "openai"              # LLM provider (currently OpenAI only)
+    model: "gpt-4o"                 # Fast and efficient model for preprocessing
+    api_key: ${OPENAI_API_KEY}      # API key from environment variables
+    temperature: 0.1                # Low temperature for precise extraction
+    max_tokens: 1000                # Token limit for JSON response
+    timeout: 30                     # Timeout in seconds
   
   processing:
-    max_query_variants: 2           # Nombre max de variantes de requête générées
-    fallback_on_llm_error: true     # Utiliser requête originale si LLM échoue
+    max_query_variants: 2           # Maximum number of query variants to generate
+    fallback_on_llm_error: true     # Use original query if LLM fails
 
-# ===============================
-# RETRIEVAL AMÉLIORÉ
-# ===============================
+# Enhanced Retrieval Configuration
 enhanced_retrieval:
-  pool_size: 15                     # Taille du pool initial de candidats
-  final_chunk_top_k: 5              # Nombre final de chunks à retourner
-  final_triplet_top_k: 3            # Nombre final de triplets KG à retourner
+  pool_size: 15                     # Initial candidate pool size
+  final_chunk_top_k: 5              # Final number of chunks to return
+  final_triplet_top_k: 3            # Final number of KG triplets to return
 
-# ===============================
-# 🆕 ÉVALUATION LLM JUGE AMÉLIORÉE
-# ===============================
+# Enhanced LLM Judge Evaluation
 evaluation:
   llm_judge:
-    model: "gpt-4o"                     # 🔧 UPGRADE: Modèle plus puissant et cohérent
-    temperature: 0.0                    # 🔧 FIX: Déterminisme maximal 
-    max_tokens: 500                     # 🔧 INCREASE: Plus d'espace pour analyse détaillée
+    model: "gpt-4o"                     # Advanced model for consistent evaluation
+    temperature: 0.0                    # Maximum determinism
+    max_tokens: 500                     # Increased space for detailed analysis
     
-    # 🆕 NOUVEAUX PARAMÈTRES pour cohérence
-    seed: 42                            # Graine fixe pour reproductibilité
-    top_p: 1.0                         # Pas de nucleus sampling
-    frequency_penalty: 0.0              # Pas de pénalité fréquence
-    presence_penalty: 0.0               # Pas de pénalité présence
+    # Consistency parameters
+    seed: 42                            # Fixed seed for reproducibility
+    top_p: 1.0                         # No nucleus sampling
+    frequency_penalty: 0.0              # No frequency penalty
+    presence_penalty: 0.0               # No presence penalty
     
-    # 🆕 RETRY LOGIC pour cohérence
-    retry_on_inconsistency: true        # Retry si scores trop différents pour réponses similaires
-    max_retries: 2                      # Nombre max de tentatives
-    similarity_threshold: 0.9           # Seuil similarité réponses (pour détection doublons)
-    max_score_difference: 0.3           # Différence max autorisée pour réponses similaires
-
+    # Retry logic for consistency
+    retry_on_inconsistency: true        # Retry if scores differ significantly for similar responses
+    max_retries: 2                      # Maximum retry attempts
+    similarity_threshold: 0.9           # Response similarity threshold for duplicate detection
+    max_score_difference: 0.3           # Maximum allowed score difference for similar responses
 
 retrieval:
-  # Paramètres pour chaque retriever
+  # Parameters for each retriever
   top_k_sparse: 10      # BM25 results before fusion
   top_k_dense: 10       # FAISS results before fusion
-  fusion_weight: 0.5    # 50% lexical / 50% sémantique
+  fusion_weight: 0.5    # 50% lexical / 50% semantic
   
-  # Paramètres de fusion
+  # Fusion parameters
   fusion_method: average  # average | rrf | weighted
-  rrf_k: 60              # Paramètre pour Reciprocal Rank Fusion
+  rrf_k: 60              # Parameter for Reciprocal Rank Fusion
 
 graph_retrieval:  
-  # === PARAMÈTRES POUR LA RECHERCHE DE SYMPTÔMES ===
-  symptom_similarity_threshold: 0.8  # Seuil de similarité pour les symptômes
-  symptom_top_k: 3                   # Nombre de symptômes similaires à récupérer
+  # Symptom search parameters
+  symptom_similarity_threshold: 0.8  # Similarity threshold for symptoms
+  symptom_top_k: 3                   # Number of similar symptoms to retrieve
   
-  # === PARAMÈTRES SPÉCIFIQUES AUX SYMPTÔMES ===
-  use_dense_kg: true      # Utiliser la KB Dense par défaut
-  fallback_to_sparse: true # Fallback vers KB Sparse si Dense échoue
+  # Symptom-specific parameters
+  use_dense_kg: true      # Use Dense KB by default
+  fallback_to_sparse: true # Fallback to Sparse KB if Dense fails
 
-  # 🆕 PARAMÈTRES CONSTRUCTION KG DENSE
-  dense_similarity_threshold: 0.8    # SIM_THRESHOLD - Seuil similarité entre symptômes
-  dense_top_k_similar: 5             # TOP_K - Nombre de symptômes similaires pour propagation
+  # Dense KG construction parameters
+  dense_similarity_threshold: 0.8    # Similarity threshold between symptoms
+  dense_top_k_similar: 5             # Number of similar symptoms for propagation
 
-# 🆕 EQUIPMENT MATCHING
+# Equipment Matching Configuration
 equipment_matching:
-  similarity_threshold: 0.9          # Seuil cosine similarity LLM ↔ KG equipment
-  use_equipment_filter: true         # Activer le filtrage par équipement  
-  fallback_to_all: true             # Si pas de match, parcourir tout le KG
+  similarity_threshold: 0.9          # Cosine similarity threshold for LLM ↔ KG equipment
+  use_equipment_filter: true         # Enable equipment-based filtering  
+  fallback_to_all: true             # If no match found, search entire KG
 
-# Dans la section hybrid_symptom_search, AJOUTER/CORRIGER :
+# Hybrid Symptom Search Configuration
 hybrid_symptom_search:
   enabled: true
   weights:
@@ -115,22 +133,18 @@ hybrid_symptom_search:
     faiss_beta: 0.4
     levenshtein_gamma: 0.2
   
-  # 🆕 AJOUTS OBLIGATOIRES pour les 3 KG :
-  bm25_index_path: data/knowledge_base/symptom_bm25_dense           # Pour Dense
-  bm25_sparse_index_path: data/knowledge_base/symptom_bm25_sparse   # Pour Sparse  
-  bm25_dense_sc_index_path: data/knowledge_base/symptom_bm25_dense_sc # Pour Dense S&C
+  # BM25 index paths for different KG types
+  bm25_index_path: data/knowledge_base/symptom_bm25_dense           # For Dense KG
+  bm25_sparse_index_path: data/knowledge_base/symptom_bm25_sparse   # For Sparse KG
+  bm25_dense_sc_index_path: data/knowledge_base/symptom_bm25_dense_sc # For Dense S&C KG
   
   levenshtein_threshold: 3
 
-
-
-
-# Configuration des modèles
+# Model Configuration
 models:
   embedding_model: sentence-transformers/all-MiniLM-L6-v2
   reranker_model: cross-encoder/ms-marco-MiniLM-L-6-v2
   openai_model: gpt-4o   
-
 
 reranking:
   enabled: true
@@ -146,14 +160,13 @@ generation:
   max_new_tokens: 1024
   importance_context_rerank: 50         
   importance_context_graph: 50
-  top_k_triplets: 3  # 🆕 LIMITATION DU NOMBRE DE TRIPLETS KG
-  seuil_pertinence: 0.7  # 🆕 SEUIL DE PERTINENCE POUR LES DOCUMENTS
+  top_k_triplets: 3  # Limit number of KG triplets
+  seuil_pertinence: 0.7  # Relevance threshold for documents
 
-
-# Configuration Neo4j - MISE À JOUR CLOUD
+# Neo4j Configuration - Cloud and Local Support
 neo4j:
-  # === CLOUD INSTANCES (NOUVEAU) ===
-  cloud_enabled: ${NEO4J_CLOUD_ENABLED}  # Contrôle cloud vs local
+  # Cloud instances
+  cloud_enabled: ${NEO4J_CLOUD_ENABLED}  # Control cloud vs local
   
   # Dense Cloud
   dense_cloud_uri: ${NEO4J_DENSE_CLOUD_URI}
@@ -170,13 +183,13 @@ neo4j:
   dense_sc_cloud_user: neo4j
   dense_sc_cloud_password: ${NEO4J_DENSE_SC_CLOUD_PASS}
   
-  # === LOCAL INSTANCES (FALLBACK) ===
-  # Base Dense (Knowledge Base enrichie)
+  # Local instances (fallback)
+  # Dense Knowledge Base (enriched)
   dense_uri: ${NEO4J_URI_DENSE}
   dense_user: ${NEO4J_USER_DENSE}
   dense_password: ${NEO4J_PASS_DENSE}
   
-  # Base Sparse (Knowledge Base brute)
+  # Sparse Knowledge Base (raw)
   sparse_uri: ${NEO4J_URI_SPARSE}
   sparse_user: ${NEO4J_USER_SPARSE}
   sparse_password: ${NEO4J_PASS_SPARSE}
@@ -186,25 +199,23 @@ neo4j:
   dense_sc_user: ${NEO4J_USER_DENSE_SC}
   dense_sc_password: ${NEO4J_PASS_DENSE_SC}
   
-  # Configuration générale (rétrocompatibilité)
+  # General configuration (backward compatibility)
   uri: ${NEO4J_URI_DENSE}
   username: ${NEO4J_USER_DENSE}
   password: ${NEO4J_PASS_DENSE}
 
-# ===============================
-# 🆕 MÉTRIQUE HYBRIDE CONSTRUCTION KG
-# ===============================
+# Hybrid Metric for KG Construction
 kg_construction_hybrid:
-  enabled: true                          # Activer métrique hybride pour construction KG
-  fallback_to_cosine: true              # Fallback vers cosine si hybride échoue
+  enabled: true                          # Enable hybrid metric for KG construction
+  fallback_to_cosine: true              # Fallback to cosine if hybrid fails
   
-  # Pondération métrique hybride (identique à hybrid_symptom_search)
+  # Hybrid metric weights (identical to hybrid_symptom_search)
   weights:
-    bm25_alpha: 0.4                     # Poids composante BM25 (lexicale)
-    faiss_beta: 0.4                     # Poids composante FAISS (sémantique)  
-    levenshtein_gamma: 0.2              # Poids composante Levenshtein (codes erreur)
+    bm25_alpha: 0.4                     # BM25 component weight (lexical)
+    faiss_beta: 0.4                     # FAISS component weight (semantic)
+    levenshtein_gamma: 0.2              # Levenshtein component weight (error codes)
   
-  # Paramètres pour construction
-  min_similarity_threshold: 0.1          # Seuil minimum pour considérer une similarité
-  max_iterations: 1000                   # Limite iterations pour éviter timeout
-  batch_size: 50                        # Taille batch pour traitement par chunks
+  # Construction parameters
+  min_similarity_threshold: 0.1          # Minimum threshold to consider similarity
+  max_iterations: 1000                   # Iteration limit to prevent timeout
+  batch_size: 50                        # Batch size for chunk processing

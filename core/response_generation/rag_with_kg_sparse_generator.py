@@ -1,7 +1,20 @@
 """
-RAG + KG Sparse Generator - Version avec Multi-Query Fusion + max_context_chunks
-Générateur spécialisé pour Knowledge Graph Sparse (structure 1:1:1)
-🆕 NOUVEAU: Support Multi-Query avec processed_query + Equipment Matching + Limite chunks stricte
+RAG with Sparse Knowledge Graph Generator: Enhanced RAG with Sparse Graph Integration
+
+This module provides advanced RAG generation capabilities enhanced with sparse knowledge
+graph integration using 1:1:1 direct mapping structure. It implements multi-query processing,
+intelligent context evaluation, adaptive prompt strategies, and sophisticated relevance
+assessment using CrossEncoder scores with comprehensive fallback mechanisms.
+
+Key components:
+- Sparse knowledge graph integration with multi-query and equipment filtering support
+- CrossEncoder score normalization and document relevance evaluation
+- Adaptive prompt strategies based on context availability and quality
+- Strict context management with configurable chunk and token limitations
+- External prompt template loading with multi-strategy support for sparse KG structure
+
+Dependencies: openai, yaml, pathlib, math, sparse_kg_querier
+Usage: Import OpenAIGeneratorKGSparse for enhanced RAG with sparse knowledge graph integration
 """
 
 import os
@@ -13,10 +26,10 @@ from openai import OpenAI
 import yaml
 import sys
 
-# Ajoute le dossier racine du projet à sys.path
+# Add project root directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-# 🆕 IMPORT DES NOUVELLES FONCTIONS MULTI-QUERY SPARSE
+# Import enhanced multi-query functions for sparse KG
 from core.retrieval_graph.sparse_kg_querier import (
     get_structured_context_sparse_with_multi_query,
     get_structured_context_sparse_with_equipment_filter,
@@ -27,7 +40,15 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def normalize_cross_encoder_score(raw_score: float) -> float:
-    """Normalise les scores CrossEncoder entre 0 et 1 via sigmoid"""
+    """
+    Normalize CrossEncoder scores to 0-1 range using sigmoid function.
+    
+    Args:
+        raw_score (float): Raw CrossEncoder score
+    
+    Returns:
+        float: Normalized score between 0 and 1
+    """
     try:
         normalized = 1.0 / (1.0 + math.exp(-raw_score))
         return float(normalized)
@@ -38,7 +59,19 @@ def normalize_cross_encoder_score(raw_score: float) -> float:
             return 0.0
 
 def evaluate_document_relevance(reranked_docs: List[Dict[str, Any]], threshold: float = 0.7) -> Dict[str, Any]:
-    """Évalue la pertinence des documents (identique à Dense)"""
+    """
+    Evaluate document relevance based on normalized CrossEncoder scores.
+    
+    Performs comprehensive relevance assessment using normalized scoring with
+    configurable thresholds for quality control in sparse KG context.
+    
+    Args:
+        reranked_docs (List[Dict[str, Any]]): Documents with CrossEncoder scores
+        threshold (float): Relevance threshold (after normalization, 0-1 range)
+    
+    Returns:
+        Dict[str, Any]: Comprehensive relevance statistics and assessment
+    """
     if not reranked_docs:
         return {
             "is_relevant": False,
@@ -73,22 +106,38 @@ def evaluate_document_relevance(reranked_docs: List[Dict[str, Any]], threshold: 
         "threshold_used": threshold
     }
     
-    print(f"📊 Évaluation pertinence documents Sparse:")
-    print(f"   🎯 Seuil utilisé: {threshold}")
-    print(f"   ✅ Documents pertinents: {relevant_count}/{len(reranked_docs)}")
-    print(f"   📈 Score max (normalisé): {max_score:.3f}")
-    print(f"   🏆 Verdict: {'PERTINENT' if is_relevant else 'NON PERTINENT'}")
+    print(f"Sparse document relevance evaluation:")
+    print(f"   Threshold used: {threshold}")
+    print(f"   Relevant documents: {relevant_count}/{len(reranked_docs)}")
+    print(f"   Max score (normalized): {max_score:.3f}")
+    print(f"   Verdict: {'RELEVANT' if is_relevant else 'NOT RELEVANT'}")
     
     return stats
 
 class OpenAIGeneratorKGSparse:
-    """Générateur RAG + Knowledge Graph Sparse avec Multi-Query + max_context_chunks"""
+    """
+    Enhanced RAG generator with sparse knowledge graph integration and multi-query support.
+    
+    Implements sophisticated RAG generation combining document retrieval with sparse
+    knowledge graph context using 1:1:1 direct mapping structure, featuring adaptive
+    prompt strategies and comprehensive relevance evaluation mechanisms.
+    """
     
     def __init__(self, model: str = "gpt-4o", context_token_limit: int = 6000):
+        """
+        Initialize enhanced RAG generator with sparse knowledge graph capabilities.
+        
+        Sets up the generator with comprehensive configuration loading, prompt template
+        management, and adaptive context processing for sparse KG structure.
+        
+        Args:
+            model (str): OpenAI model name for generation
+            context_token_limit (int): Maximum tokens allowed for context
+        """
         self.model = model
         self.context_token_limit = context_token_limit
 
-        # Chargement des paramètres YAML
+        # YAML parameter loading
         with open("config/settings.yaml", "r") as f:
             settings = yaml.safe_load(f)
 
@@ -97,33 +146,45 @@ class OpenAIGeneratorKGSparse:
         self.importance_context_graph = gen_cfg.get("importance_context_graph", 50)
         self.max_tokens = gen_cfg.get("max_new_tokens", 2000)
         
-        # 🆕 CHARGEMENT max_context_chunks depuis settings.yaml
+        # Load max_context_chunks from settings.yaml
         self.max_context_chunks = gen_cfg.get("max_context_chunks", 3)
         
         self.max_triplets = gen_cfg.get("top_k_triplets", 3)
-        self.seuil_pertinence = gen_cfg.get("seuil_pertinence", 0.7)
+        self.relevance_threshold = gen_cfg.get("seuil_pertinence", 0.7)
         
-        # 🆕 CHARGEMENT DES PROMPTS POUR SPARSE
+        # Load prompts for sparse KG
         self.prompts = self._load_prompt_templates()
         
-        print(f"🎯 OpenAIGeneratorKGSparse initialisé:")
-        print(f"   🔢 Max chunks: {self.max_context_chunks}")
-        print(f"   🎯 Token limit: {self.context_token_limit}")
-        print(f"   📊 Limitation triplets: {self.max_triplets}")
-        print(f"   🎯 Seuil pertinence: {self.seuil_pertinence}")
-        print(f"   📋 Prompts chargés: {list(self.prompts.keys())}")
+        print(f"OpenAIGeneratorKGSparse initialized:")
+        print(f"   Max chunks: {self.max_context_chunks}")
+        print(f"   Token limit: {self.context_token_limit}")
+        print(f"   Triplet limitation: {self.max_triplets}")
+        print(f"   Relevance threshold: {self.relevance_threshold}")
+        print(f"   Prompts loaded: {list(self.prompts.keys())}")
 
     def _load_prompt_templates(self) -> Dict[str, str]:
-        """Charge les templates de prompts pour Sparse"""
+        """
+        Load prompt templates for sparse knowledge graph processing.
+        
+        Reads and parses sparse KG-specific prompt templates from external
+        configuration file, supporting different context scenarios.
+        
+        Returns:
+            Dict[str, str]: Dictionary of parsed prompt templates by strategy
+            
+        Raises:
+            FileNotFoundError: If prompt file is missing
+            ValueError: If required prompts are not found
+        """
         prompt_path = Path("config/prompts/rag_with_kg_sparse_prompt.txt")
         
         if not prompt_path.exists():
-            raise FileNotFoundError(f"Fichier prompt manquant: {prompt_path}")
+            raise FileNotFoundError(f"Missing prompt file: {prompt_path}")
         
         with open(prompt_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        # Parse les prompts selon le format des fichiers fournis
+        # Parse prompts according to provided file format
         prompts = {}
         sections = content.split("# === PROMPT ")
         
@@ -133,7 +194,7 @@ class OpenAIGeneratorKGSparse:
             prompt_header = lines[0].split(' ===')[0]
             prompt_content = '\n'.join(lines[1:]).strip()
             
-            # Mapping vers les clés utilisées par le générateur
+            # Mapping to generator keys
             if prompt_header == "KG_SPARSE_ONLY":
                 prompts["kg_only"] = prompt_content
             elif prompt_header == "DOC_ONLY":
@@ -142,80 +203,98 @@ class OpenAIGeneratorKGSparse:
                 prompts["both"] = prompt_content
         
         if len(prompts) != 3:
-            raise ValueError(f"Prompts manquants dans {prompt_path}. Trouvés: {list(prompts.keys())}")
+            raise ValueError(f"Missing prompts in {prompt_path}. Found: {list(prompts.keys())}")
         
         return prompts
 
     def _estimate_tokens(self, text: str) -> int:
-        """Estimation simple du nombre de tokens"""
+        """
+        Simple token count estimation for budget management.
+        
+        Args:
+            text (str): Text to estimate token count for
+            
+        Returns:
+            int: Estimated token count
+        """
         return int(len(text.split()) * 0.75)
 
     def select_passages_with_limits(self, passages: List[str]) -> tuple:
         """
-        🆕 SÉLECTION STRICTE avec respect de max_context_chunks
+        Strict passage selection with respect for maximum context chunks.
+        
+        Implements hierarchical selection prioritizing chunk count limits followed
+        by token budget validation for optimal context utilization.
         
         Args:
-            passages: Liste des passages à sélectionner
+            passages (List[str]): List of candidate passages for selection
             
         Returns:
-            tuple: (selected_passages, total_tokens)
+            tuple: (selected_passages, total_tokens) - Final passages and token count
         """
-        # 🎯 LIMITE 1 : Nombre maximum de chunks (PRIORITAIRE)
+        # Limit 1: Maximum number of chunks (priority)
         max_chunks = self.max_context_chunks
         selected_passages = passages[:max_chunks]
         
-        # 🎯 LIMITE 2 : Vérification tokens (sécurité)
+        # Limit 2: Token verification (safety)
         total_tokens = 0
         final_passages = []
         
         for i, passage in enumerate(selected_passages):
             token_estimate = self._estimate_tokens(passage)
             
-            # Vérification que ce passage ne dépasse pas la limite
+            # Verify passage does not exceed limit
             if total_tokens + token_estimate > self.context_token_limit:
-                print(f"⚠️ Passage {i+1} ignoré: dépassement limite tokens ({total_tokens + token_estimate} > {self.context_token_limit})")
+                print(f"Warning: Passage {i+1} ignored: token limit exceeded ({total_tokens + token_estimate} > {self.context_token_limit})")
                 break
                 
             final_passages.append(passage)
             total_tokens += token_estimate
 
-        print(f"✅ RAG Sparse - Passages sélectionnés: {len(final_passages)}/{len(passages)} (tokens: {total_tokens})")
+        print(f"Sparse RAG - Selected passages: {len(final_passages)}/{len(passages)} (tokens: {total_tokens})")
         return final_passages, total_tokens
 
     def generate_answer(self, query: str, passages: List[str], 
                        reranked_metadata: Optional[List[Dict[str, Any]]] = None,
                        equipment_info: Optional[Dict] = None,
-                       processed_query: Optional[Any] = None) -> str:  # 🆕 NOUVEAU PARAMÈTRE
+                       processed_query: Optional[Any] = None) -> str:
         """
-        🆕 Génère une réponse avec Multi-Query Sparse KG si processed_query fourni
+        Generate response with multi-query sparse knowledge graph integration.
+        
+        Performs comprehensive RAG generation with adaptive strategy selection based
+        on context availability, relevance assessment, and multi-query processing
+        capabilities specific to sparse KG structure.
         
         Args:
-            query: Question de l'utilisateur (utilisée si pas de processed_query)
-            passages: Textes des passages sélectionnés
-            reranked_metadata: Métadonnées des documents re-rankés
-            equipment_info: Informations equipment 
-            processed_query: 🆕 Données complètes du LLM preprocessing
+            query (str): User question (used if no processed_query)
+            passages (List[str]): Selected passage texts
+            reranked_metadata (Optional[List[Dict[str, Any]]]): Reranked document metadata
+            equipment_info (Optional[Dict]): Equipment information for filtering
+            processed_query (Optional[Any]): Complete LLM preprocessing data
+            
+        Returns:
+            str: Generated response based on available context and strategy
         """
-        # 🆕 SÉLECTION AVEC LIMITES STRICTES
+        # Strict selection with limits
         selected_passages, total_tokens = self.select_passages_with_limits(passages)
         context_rerank = "\n\n".join(selected_passages)
 
-        # Évaluation de la pertinence documentaire
+        # Document relevance evaluation
         if reranked_metadata:
             doc_relevance_stats = evaluate_document_relevance(
                 reranked_metadata, 
-                threshold=self.seuil_pertinence
+                threshold=self.relevance_threshold
             )
             doc_has_content = doc_relevance_stats["is_relevant"]
         else:
             doc_has_content = len(selected_passages) > 0 and any(len(p.strip()) > 20 for p in selected_passages)
             doc_relevance_stats = {"is_relevant": doc_has_content, "max_score": 0.0}
 
-        # 🆕 RÉCUPÉRATION DU CONTEXTE KG SPARSE AVEC MULTI-QUERY OU FALLBACK
+        # Sparse KG context retrieval with multi-query or fallback
         try:
-            # 🆕 MULTI-QUERY si processed_query disponible
+            # Multi-query if processed_query available
             if processed_query and hasattr(processed_query, 'query_variants'):
-                print(f"🧠 Utilisation Multi-Query Sparse KG avec LLM preprocessing")
+                print(f"Using Multi-Query Sparse KG with LLM preprocessing")
                 context_graph = get_structured_context_sparse_with_multi_query(
                     processed_query.filtered_query,
                     processed_query.query_variants,
@@ -224,7 +303,7 @@ class OpenAIGeneratorKGSparse:
                     max_triplets=self.max_triplets
                 )
             elif equipment_info:
-                print(f"🏭 Utilisation Single-Query Sparse KG avec equipment matching")
+                print(f"Using Single-Query Sparse KG with equipment matching")
                 context_graph = get_structured_context_sparse_with_equipment_filter(
                     query,
                     equipment_info,
@@ -232,7 +311,7 @@ class OpenAIGeneratorKGSparse:
                     max_triplets=self.max_triplets
                 )
             else:
-                print(f"📄 Utilisation Single-Query Sparse KG classique")
+                print(f"Using Single-Query Sparse KG classic")
                 context_graph = get_structured_context_sparse(
                     query, 
                     format_type="compact", 
@@ -245,35 +324,35 @@ class OpenAIGeneratorKGSparse:
                 triplet_count = 0
             else:
                 triplet_count = len([line for line in context_graph.split('\n') if '→' in line])
-                print(f"✅ Contexte Sparse KG récupéré : {triplet_count} triplets")
+                print(f"Sparse KG context retrieved: {triplet_count} triplets")
                 kg_has_content = triplet_count > 0
                 
         except Exception as e:
-            context_graph = f"[⚠️ Unable to retrieve Sparse KG context: {str(e)}]"
-            print(f"❌ Erreur lors de la récupération du contexte Sparse KG : {e}")
+            context_graph = f"[Unable to retrieve Sparse KG context: {str(e)}]"
+            print(f"Error retrieving Sparse KG context: {e}")
             kg_has_content = False
             triplet_count = 0
 
-        # Stratégie de réponse (identique à Dense)
+        # Response strategy (similar to Dense)
         if not doc_has_content and not kg_has_content:
-            print("🚫 Stratégie: AUCUN_CONTEXTE")
+            print("Strategy: NO_CONTEXT")
             return "Information not available in the provided context."
         
         elif not doc_has_content and kg_has_content:
             prompt_type = "kg_only"
             mode_str = "Multi-Query" if processed_query and hasattr(processed_query, 'query_variants') else "Single-Query"
-            print(f"🧠 Stratégie: KG_SPARSE_SEULEMENT ({mode_str}) - {triplet_count} triplets")
+            print(f"Strategy: KG_SPARSE_ONLY ({mode_str}) - {triplet_count} triplets")
         
         elif doc_has_content and not kg_has_content:
             prompt_type = "doc_only"
-            print(f"📄 Stratégie: DOC_SEULEMENT")
+            print(f"Strategy: DOC_ONLY")
         
         else:
             prompt_type = "both"
             mode_str = "Multi-Query" if processed_query and hasattr(processed_query, 'query_variants') else "Single-Query"
-            print(f"🔄 Stratégie: HYBRIDE ({mode_str}) - docs + {triplet_count} triplets Sparse")
+            print(f"Strategy: HYBRID ({mode_str}) - docs + {triplet_count} sparse triplets")
 
-        # Génération du prompt
+        # Prompt generation
         prompt = self._generate_adaptive_prompt(
             prompt_type, query, context_rerank, context_graph, doc_relevance_stats
         )
@@ -289,31 +368,49 @@ class OpenAIGeneratorKGSparse:
             
             generated_answer = response.choices[0].message.content.strip()
             
-            # 🆕 LOGGING DE DIAGNOSTIC COMPLET AVEC MODE
+            # Complete diagnostic logging with mode
             multi_query_info = ""
             if processed_query and hasattr(processed_query, 'query_variants'):
-                multi_query_info = f" [Multi-Query: {len(processed_query.query_variants)} variantes]"
+                multi_query_info = f" [Multi-Query: {len(processed_query.query_variants)} variants]"
             
-            print(f"📝 Réponse Sparse générée: {len(generated_answer)} caractères")
-            print(f"🎯 Stratégie utilisée: {prompt_type.upper()}{multi_query_info}")
-            print(f"📄 Contexte doc: {'✅' if doc_has_content else '❌'} (score max: {doc_relevance_stats.get('max_score', 0):.3f})")
-            print(f"🧠 Contexte Sparse KG: {'✅' if kg_has_content else '❌'} ({triplet_count} triplets)")
-            print(f"🎯 Passages utilisés: {len(selected_passages)}, tokens: {total_tokens}")
+            print(f"Sparse response generated: {len(generated_answer)} characters")
+            print(f"Strategy used: {prompt_type.upper()}{multi_query_info}")
+            print(f"Doc context: {'✅' if doc_has_content else '❌'} (max score: {doc_relevance_stats.get('max_score', 0):.3f})")
+            print(f"Sparse KG context: {'✅' if kg_has_content else '❌'} ({triplet_count} triplets)")
+            print(f"Passages used: {len(selected_passages)}, tokens: {total_tokens}")
             
             return generated_answer
 
         except Exception as e:
-            error_msg = f"❌ OpenAI API error with Sparse KG context: {str(e)}"
+            error_msg = f"OpenAI API error with Sparse KG context: {str(e)}"
             print(error_msg)
             return error_msg
 
     def _generate_adaptive_prompt(self, prompt_type: str, query: str, 
                                  context_rerank: str, context_graph: str,
                                  doc_stats: Dict[str, Any]) -> str:
-        """Génère le prompt adaptatif pour Sparse"""
+        """
+        Generate adaptive prompt for sparse knowledge graph context.
+        
+        Constructs context-appropriate prompts using externalized templates based
+        on available context types and sparse KG structure requirements.
+        
+        Args:
+            prompt_type (str): Type of prompt strategy to use
+            query (str): User query
+            context_rerank (str): Document context from reranking
+            context_graph (str): Sparse knowledge graph context
+            doc_stats (Dict[str, Any]): Document relevance statistics
+            
+        Returns:
+            str: Complete formatted prompt for generation
+            
+        Raises:
+            ValueError: If unknown prompt type is specified
+        """
         
         if prompt_type not in self.prompts:
-            raise ValueError(f"Type de prompt inconnu: {prompt_type}. Disponibles: {list(self.prompts.keys())}")
+            raise ValueError(f"Unknown prompt type: {prompt_type}. Available: {list(self.prompts.keys())}")
         
         template = self.prompts[prompt_type]
         
@@ -339,16 +436,24 @@ class OpenAIGeneratorKGSparse:
             )
 
     def get_generation_stats(self) -> Dict[str, Any]:
-        """Retourne les statistiques du générateur Sparse"""
+        """
+        Return comprehensive generator configuration statistics.
+        
+        Provides detailed configuration information for monitoring, debugging,
+        and performance analysis specific to sparse KG integration.
+        
+        Returns:
+            Dict[str, Any]: Complete generator configuration and capabilities
+        """
         return {
             "model": self.model,
             "max_context_chunks": self.max_context_chunks,
             "context_token_limit": self.context_token_limit,
             "max_tokens": self.max_tokens,
             "max_triplets": self.max_triplets,
-            "seuil_pertinence": self.seuil_pertinence,
+            "relevance_threshold": self.relevance_threshold,
             "kg_type": "sparse",
             "structure": "1:1:1 direct mappings",
             "prompts_loaded": len(self.prompts),
-            "multi_query_support": True  # 🆕 Indicateur Multi-Query
+            "multi_query_support": True
         }

@@ -1,3 +1,22 @@
+"""
+RAG with Dense Knowledge Graph Generator: Enhanced RAG with Graph Integration
+
+This module provides advanced RAG generation capabilities enhanced with dense knowledge
+graph integration. It implements multi-query processing, intelligent context evaluation,
+adaptive prompt strategies, and sophisticated relevance assessment using CrossEncoder
+scores with comprehensive fallback mechanisms.
+
+Key components:
+- Dense knowledge graph integration with multi-query and equipment filtering
+- CrossEncoder score normalization and document relevance evaluation
+- Adaptive prompt strategies based on context availability and quality
+- Strict context management with configurable chunk and token limitations
+- External prompt template loading with multi-strategy support
+
+Dependencies: openai, yaml, pathlib, math, dense_kg_querier
+Usage: Import OpenAIGeneratorKG for enhanced RAG with dense knowledge graph integration
+"""
+
 import os
 import math
 from typing import List, Dict, Any, Optional
@@ -7,10 +26,10 @@ from openai import OpenAI
 import yaml
 import sys
 
-# Ajoute le dossier racine du projet à sys.path
+# Add project root directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-# 🆕 IMPORT DE LA NOUVELLE FONCTION MULTI-QUERY + STRUCTURES
+# Import enhanced multi-query functions and structures
 from core.retrieval_graph.dense_kg_querier import (
     get_structured_context_with_multi_query,
     get_structured_context_with_equipment_filter,
@@ -22,20 +41,23 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def normalize_cross_encoder_score(raw_score: float) -> float:
     """
-    Normalise les scores CrossEncoder bruts entre 0 et 1 via sigmoid
+    Normalize raw CrossEncoder scores to 0-1 range using sigmoid function.
+    
+    Applies sigmoid normalization to convert potentially unbounded CrossEncoder
+    scores to a standardized range for consistent relevance assessment.
     
     Args:
-        raw_score: Score brut du CrossEncoder (peut être > 1)
+        raw_score (float): Raw CrossEncoder score (may be > 1)
     
     Returns:
-        float: Score normalisé entre 0 et 1
+        float: Normalized score between 0 and 1
     """
     try:
         # Sigmoid normalization: 1 / (1 + exp(-x))
         normalized = 1.0 / (1.0 + math.exp(-raw_score))
         return float(normalized)
     except (OverflowError, ZeroDivisionError):
-        # Fallback pour les valeurs extrêmes
+        # Fallback for extreme values
         if raw_score > 0:
             return 1.0
         else:
@@ -47,15 +69,18 @@ def evaluate_document_relevance(
     min_relevant_docs: int = 1
 ) -> Dict[str, Any]:
     """
-    Évalue la pertinence réelle des documents basée sur les scores CrossEncoder
+    Evaluate actual document relevance based on normalized CrossEncoder scores.
+    
+    Performs comprehensive relevance assessment using normalized scoring with
+    configurable thresholds and minimum document requirements for quality control.
     
     Args:
-        reranked_docs: Documents avec scores CrossEncoder
-        threshold: Seuil de pertinence (après normalisation, entre 0 et 1)
-        min_relevant_docs: Nombre minimum de docs pertinents requis
+        reranked_docs (List[Dict[str, Any]]): Documents with CrossEncoder scores
+        threshold (float): Relevance threshold (after normalization, 0-1 range)
+        min_relevant_docs (int): Minimum number of relevant documents required
     
     Returns:
-        Dict avec les statistiques de pertinence
+        Dict[str, Any]: Comprehensive relevance statistics and assessment
     """
     if not reranked_docs:
         return {
@@ -67,7 +92,7 @@ def evaluate_document_relevance(
             "normalized_scores": []
         }
     
-    # Normalisation et évaluation des scores
+    # Score normalization and evaluation
     normalized_scores = []
     relevant_count = 0
     
@@ -76,7 +101,7 @@ def evaluate_document_relevance(
         normalized_score = normalize_cross_encoder_score(raw_score)
         normalized_scores.append(normalized_score)
         
-        # Mise à jour du document avec le score normalisé
+        # Update document with normalized score
         doc['cross_encoder_score_normalized'] = normalized_score
         
         if normalized_score >= threshold:
@@ -85,7 +110,7 @@ def evaluate_document_relevance(
     max_score = max(normalized_scores) if normalized_scores else 0.0
     avg_score = sum(normalized_scores) / len(normalized_scores) if normalized_scores else 0.0
     
-    # Décision de pertinence
+    # Relevance decision
     is_relevant = relevant_count >= min_relevant_docs
     
     stats = {
@@ -98,21 +123,39 @@ def evaluate_document_relevance(
         "threshold_used": threshold
     }
     
-    print(f"📊 Évaluation pertinence documents Dense:")
-    print(f"   🎯 Seuil utilisé: {threshold}")
-    print(f"   ✅ Documents pertinents: {relevant_count}/{len(reranked_docs)}")
-    print(f"   📈 Score max (normalisé): {max_score:.3f}")
-    print(f"   📊 Score moyen (normalisé): {avg_score:.3f}")
-    print(f"   🏆 Verdict: {'PERTINENT' if is_relevant else 'NON PERTINENT'}")
+    print(f"Dense document relevance evaluation:")
+    print(f"   Threshold used: {threshold}")
+    print(f"   Relevant documents: {relevant_count}/{len(reranked_docs)}")
+    print(f"   Max score (normalized): {max_score:.3f}")
+    print(f"   Average score (normalized): {avg_score:.3f}")
+    print(f"   Verdict: {'RELEVANT' if is_relevant else 'NOT RELEVANT'}")
     
     return stats
 
 class OpenAIGeneratorKG:
+    """
+    Enhanced RAG generator with dense knowledge graph integration and multi-query support.
+    
+    Implements sophisticated RAG generation combining document retrieval with dense
+    knowledge graph context, featuring adaptive prompt strategies, multi-query processing,
+    and comprehensive relevance evaluation mechanisms.
+    """
+    
     def __init__(self, model: str = "gpt-4o", context_token_limit: int = 6000):
+        """
+        Initialize enhanced RAG generator with dense knowledge graph capabilities.
+        
+        Sets up the generator with comprehensive configuration loading, prompt template
+        management, and adaptive context processing capabilities.
+        
+        Args:
+            model (str): OpenAI model name for generation
+            context_token_limit (int): Maximum tokens allowed for context
+        """
         self.model = model
         self.context_token_limit = context_token_limit
 
-        # Chargement des paramètres YAML
+        # YAML parameter loading
         with open("config/settings.yaml", "r") as f:
             settings = yaml.safe_load(f)
 
@@ -121,36 +164,48 @@ class OpenAIGeneratorKG:
         self.importance_context_graph = gen_cfg.get("importance_context_graph", 50)
         self.max_tokens = gen_cfg.get("max_new_tokens", 2000)
         
-        # 🆕 CHARGEMENT max_context_chunks depuis settings.yaml
+        # Load max_context_chunks from settings.yaml
         self.max_context_chunks = gen_cfg.get("max_context_chunks", 3)
         
-        # 🆕 AJOUT : Récupération de la limitation des triplets depuis la config
+        # Load triplet limitation from configuration
         self.max_triplets = gen_cfg.get("top_k_triplets", 3)
         
-        # 🆕 AJOUT : Seuil de pertinence configurable depuis settings.yaml
-        self.seuil_pertinence = gen_cfg.get("seuil_pertinence", 0.7)
+        # Load configurable relevance threshold from settings.yaml
+        self.relevance_threshold = gen_cfg.get("seuil_pertinence", 0.7)
         
-        # 🆕 CHARGEMENT DES PROMPTS EXTERNALISÉS
+        # Load externalized prompts
         self.prompts = self._load_prompt_templates()
         
-        print(f"🎯 OpenAIGeneratorKG Dense initialisé:")
-        print(f"   🔢 Max chunks: {self.max_context_chunks}")
-        print(f"   🎯 Token limit: {self.context_token_limit}")
-        print(f"   📊 Limitation triplets: {self.max_triplets}")
-        print(f"   🎯 Seuil pertinence: {self.seuil_pertinence}")
-        print(f"   📋 Prompts chargés: {list(self.prompts.keys())}")
+        print(f"OpenAIGeneratorKG Dense initialized:")
+        print(f"   Max chunks: {self.max_context_chunks}")
+        print(f"   Token limit: {self.context_token_limit}")
+        print(f"   Triplet limitation: {self.max_triplets}")
+        print(f"   Relevance threshold: {self.relevance_threshold}")
+        print(f"   Prompts loaded: {list(self.prompts.keys())}")
 
     def _load_prompt_templates(self) -> Dict[str, str]:
-        """Charge les templates de prompts depuis le fichier"""
+        """
+        Load prompt templates from external file with comprehensive parsing.
+        
+        Reads and parses multi-strategy prompt templates from external configuration
+        file, supporting different context scenarios (KG only, docs only, both).
+        
+        Returns:
+            Dict[str, str]: Dictionary of parsed prompt templates by strategy
+            
+        Raises:
+            FileNotFoundError: If prompt file is missing
+            ValueError: If required prompts are not found
+        """
         prompt_path = Path("config/prompts/rag_with_kg_dense_prompt.txt")
         
         if not prompt_path.exists():
-            raise FileNotFoundError(f"Fichier prompt manquant: {prompt_path}")
+            raise FileNotFoundError(f"Missing prompt file: {prompt_path}")
         
         with open(prompt_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        # Parse les prompts selon le format des fichiers fournis
+        # Parse prompts according to provided file format
         prompts = {}
         sections = content.split("# === PROMPT ")
         
@@ -160,7 +215,7 @@ class OpenAIGeneratorKG:
             prompt_header = lines[0].split(' ===')[0]
             prompt_content = '\n'.join(lines[1:]).strip()
             
-            # Mapping vers les clés utilisées par le générateur
+            # Mapping to generator keys
             if prompt_header == "KG_DENSE_ONLY":
                 prompts["kg_only"] = prompt_content
             elif prompt_header == "DOC_ONLY":
@@ -169,44 +224,55 @@ class OpenAIGeneratorKG:
                 prompts["both"] = prompt_content
         
         if len(prompts) != 3:
-            raise ValueError(f"Prompts manquants dans {prompt_path}. Trouvés: {list(prompts.keys())}")
+            raise ValueError(f"Missing prompts in {prompt_path}. Found: {list(prompts.keys())}")
         
         return prompts
 
     def _estimate_tokens(self, text: str) -> int:
-        """Estimation simple du nombre de tokens"""
+        """
+        Simple token count estimation for budget management.
+        
+        Args:
+            text (str): Text to estimate token count for
+            
+        Returns:
+            int: Estimated token count
+        """
         return int(len(text.split()) * 0.75)
 
     def select_passages_with_limits(self, passages: List[str]) -> tuple:
         """
-        🆕 SÉLECTION STRICTE avec respect de max_context_chunks
+        Strict passage selection with respect for maximum context chunks.
+        
+        Implements hierarchical selection prioritizing chunk count limits followed
+        by token budget validation for optimal context utilization.
         
         Args:
-            passages: Liste des passages à sélectionner
+            passages (List[str]): List of candidate passages for selection
             
         Returns:
-            tuple: (selected_passages, total_tokens)
+            tuple: (selected_passages, total_tokens) - Final passages and token count
         """
-        # 🎯 LIMITE 1 : Nombre maximum de chunks (PRIORITAIRE)
+        # Limit 1: Maximum number of chunks (priority)
         max_chunks = self.max_context_chunks
         selected_passages = passages[:max_chunks]
         
-        # 🎯 LIMITE 2 : Vérification tokens (sécurité)
+        # Limit 2: Token verification (safety)
         total_tokens = 0
         final_passages = []
         
         for i, passage in enumerate(selected_passages):
             token_estimate = self._estimate_tokens(passage)
             
-            # Vérification que ce passage ne dépasse pas la limite
+            # Verify passage does not exceed limit
             if total_tokens + token_estimate > self.context_token_limit:
-                print(f"⚠️ Passage {i+1} ignoré: dépassement limite tokens ({total_tokens + token_estimate} > {self.context_token_limit})")
+                print(f"Warning: Passage {i+1} ignored: token limit exceeded ({total_tokens + token_estimate} > {self.context_token_limit})")
                 break
                 
             final_passages.append(passage)
             total_tokens += token_estimate
 
-        print(f"✅ RAG Dense - Passages sélectionnés: {len(final_passages)}/{len(passages)} (tokens: {total_tokens})")
+        print(f"Dense RAG - Selected passages: {len(final_passages)}/{len(passages)} (tokens: {total_tokens})")
         return final_passages, total_tokens
 
     def generate_answer(
@@ -215,40 +281,47 @@ class OpenAIGeneratorKG:
         passages: List[str], 
         reranked_metadata: Optional[List[Dict[str, Any]]] = None,
         equipment_info: Optional[Dict] = None,
-        processed_query: Optional[Any] = None  # 🆕 NOUVEAU PARAMÈTRE
+        processed_query: Optional[Any] = None
     ) -> str:
         """
-        🆕 Génère une réponse avec Multi-Query KG si processed_query fourni
+        Generate response with multi-query knowledge graph integration.
+        
+        Performs comprehensive RAG generation with adaptive strategy selection based
+        on context availability, relevance assessment, and multi-query processing
+        capabilities when processed query data is available.
         
         Args:
-            query: Question de l'utilisateur (utilisée si pas de processed_query)
-            passages: Textes des passages sélectionnés
-            reranked_metadata: Métadonnées des documents re-rankés (avec scores)
-            equipment_info: Informations equipment 
-            processed_query: 🆕 Données complètes du LLM preprocessing
+            query (str): User question (used if no processed_query)
+            passages (List[str]): Selected passage texts
+            reranked_metadata (Optional[List[Dict[str, Any]]]): Reranked document metadata with scores
+            equipment_info (Optional[Dict]): Equipment information for filtering
+            processed_query (Optional[Any]): Complete LLM preprocessing data
+            
+        Returns:
+            str: Generated response based on available context and strategy
         """
-        # 🆕 SÉLECTION AVEC LIMITES STRICTES
+        # Strict selection with limits
         selected_passages, total_tokens = self.select_passages_with_limits(passages)
         context_rerank = "\n\n".join(selected_passages)
 
-        # 🆕 ÉVALUATION INTELLIGENTE DE LA PERTINENCE DOCUMENTAIRE
+        # Intelligent document relevance evaluation
         if reranked_metadata:
             doc_relevance_stats = evaluate_document_relevance(
                 reranked_metadata, 
-                threshold=self.seuil_pertinence  # 🔧 Utilisation du paramètre depuis settings.yaml
+                threshold=self.relevance_threshold
             )
             doc_has_content = doc_relevance_stats["is_relevant"]
         else:
-            # Fallback si pas de métadonnées (évaluation basique)
+            # Fallback if no metadata (basic evaluation)
             doc_has_content = len(selected_passages) > 0 and any(len(p.strip()) > 20 for p in selected_passages)
             doc_relevance_stats = {"is_relevant": doc_has_content, "max_score": 0.0}
-            print("⚠️ Pas de métadonnées re-ranking, évaluation basique utilisée")
+            print("Warning: No reranking metadata, using basic evaluation")
 
-        # 🆕 RÉCUPÉRATION DU CONTEXTE KG AVEC MULTI-QUERY OU FALLBACK
+        # Knowledge graph context retrieval with multi-query or fallback
         try:
-            # 🆕 MULTI-QUERY si processed_query disponible
+            # Multi-query if processed_query available
             if processed_query and hasattr(processed_query, 'query_variants'):
-                print(f"🧠 Utilisation Multi-Query Dense KG avec LLM preprocessing")
+                print(f"Using Multi-Query Dense KG with LLM preprocessing")
                 context_graph = get_structured_context_with_multi_query(
                     processed_query.filtered_query,
                     processed_query.query_variants,
@@ -257,7 +330,7 @@ class OpenAIGeneratorKG:
                     max_triplets=self.max_triplets
                 )
             elif equipment_info:
-                print(f"🏭 Utilisation Single-Query Dense KG avec equipment matching")
+                print(f"Using Single-Query Dense KG with equipment matching")
                 context_graph = get_structured_context_with_equipment_filter(
                     query,
                     equipment_info,
@@ -265,59 +338,59 @@ class OpenAIGeneratorKG:
                     max_triplets=self.max_triplets
                 )
             else:
-                print(f"📄 Utilisation Single-Query Dense KG classique")
+                print(f"Using Single-Query Dense KG classic")
                 context_graph = get_structured_context(
                     query, 
                     format_type="compact", 
                     max_triplets=self.max_triplets
                 )
             
-            # Vérification et logging du résultat
+            # Verification and logging of results
             if not context_graph or context_graph.startswith("No relevant"):
                 context_graph = "[No relevant information found in Dense Knowledge Graph]"
-                print("⚠️ Aucun contexte Dense KG pertinent trouvé")
+                print("Warning: No relevant Dense KG context found")
                 kg_has_content = False
                 triplet_count = 0
             else:
-                # Compter le nombre de triplets dans le contexte retourné
+                # Count triplets in returned context
                 triplet_count = len([line for line in context_graph.split('\n') if '→' in line])
-                print(f"✅ Contexte Dense KG récupéré : {triplet_count} triplets")
+                print(f"Dense KG context retrieved: {triplet_count} triplets")
                 kg_has_content = triplet_count > 0
                 
-                # Validation : S'assurer qu'on n'a pas dépassé la limite
+                # Validation: Ensure we haven't exceeded limit
                 if triplet_count > self.max_triplets:
-                    print(f"⚠️ ATTENTION : {triplet_count} triplets récupérés > limite {self.max_triplets}")
+                    print(f"Warning: {triplet_count} triplets retrieved > limit {self.max_triplets}")
                 
         except Exception as e:
-            context_graph = f"[⚠️ Unable to retrieve Dense KG context: {str(e)}]"
-            print(f"❌ Erreur lors de la récupération du contexte Dense KG : {e}")
+            context_graph = f"[Unable to retrieve Dense KG context: {str(e)}]"
+            print(f"Error retrieving Dense KG context: {e}")
             kg_has_content = False
             triplet_count = 0
 
-        # 🆕 STRATÉGIE DE RÉPONSE SELON LES CONTEXTES DISPONIBLES
+        # Response strategy based on available contexts
         if not doc_has_content and not kg_has_content:
-            # Stratégie 1 : AUCUN contexte pertinent
-            print("🚫 Stratégie: AUCUN_CONTEXTE - Pas de contexte pertinent")
+            # Strategy 1: NO relevant context
+            print("Strategy: NO_CONTEXT - No relevant context available")
             return "Information not available in the provided context."
         
         elif not doc_has_content and kg_has_content:
-            # Stratégie 2 : SEULEMENT KG pertinent
+            # Strategy 2: ONLY KG relevant
             prompt_type = "kg_only"
             mode_str = "Multi-Query" if processed_query and hasattr(processed_query, 'query_variants') else "Single-Query"
-            print(f"🧠 Stratégie: KG_DENSE_SEULEMENT ({mode_str}) - {triplet_count} triplets, docs non pertinents")
+            print(f"Strategy: KG_DENSE_ONLY ({mode_str}) - {triplet_count} triplets, docs not relevant")
         
         elif doc_has_content and not kg_has_content:
-            # Stratégie 3 : SEULEMENT documents pertinents
+            # Strategy 3: ONLY documents relevant
             prompt_type = "doc_only"
-            print(f"📄 Stratégie: DOC_SEULEMENT - docs pertinents, pas de triplets Dense KG")
+            print(f"Strategy: DOC_ONLY - relevant docs, no Dense KG triplets")
         
         else:
-            # Stratégie 4 : LES DEUX contextes pertinents
+            # Strategy 4: BOTH contexts relevant
             prompt_type = "both"
             mode_str = "Multi-Query" if processed_query and hasattr(processed_query, 'query_variants') else "Single-Query"
-            print(f"🔄 Stratégie: HYBRIDE ({mode_str}) - docs + {triplet_count} triplets Dense KG")
+            print(f"Strategy: HYBRID ({mode_str}) - docs + {triplet_count} Dense KG triplets")
 
-        # 🆕 GÉNÉRATION DU PROMPT AVEC TEMPLATE EXTERNALISÉ
+        # Prompt generation with externalized template
         prompt = self._generate_adaptive_prompt(
             prompt_type, query, context_rerank, context_graph, doc_relevance_stats
         )
@@ -333,21 +406,21 @@ class OpenAIGeneratorKG:
             
             generated_answer = response.choices[0].message.content.strip()
             
-            # 🆕 LOGGING DE DIAGNOSTIC COMPLET AVEC MODE
+            # Complete diagnostic logging with mode
             multi_query_info = ""
             if processed_query and hasattr(processed_query, 'query_variants'):
-                multi_query_info = f" [Multi-Query: {len(processed_query.query_variants)} variantes]"
+                multi_query_info = f" [Multi-Query: {len(processed_query.query_variants)} variants]"
             
-            print(f"📝 Réponse Dense générée: {len(generated_answer)} caractères")
-            print(f"🎯 Stratégie utilisée: {prompt_type.upper()}{multi_query_info}")
-            print(f"📄 Contexte doc: {'✅' if doc_has_content else '❌'} (score max: {doc_relevance_stats.get('max_score', 0):.3f})")
-            print(f"🧠 Contexte Dense KG: {'✅' if kg_has_content else '❌'} ({triplet_count} triplets)")
-            print(f"🎯 Passages utilisés: {len(selected_passages)}, tokens: {total_tokens}")
+            print(f"Dense response generated: {len(generated_answer)} characters")
+            print(f"Strategy used: {prompt_type.upper()}{multi_query_info}")
+            print(f"Doc context: {'✅' if doc_has_content else '❌'} (max score: {doc_relevance_stats.get('max_score', 0):.3f})")
+            print(f"Dense KG context: {'✅' if kg_has_content else '❌'} ({triplet_count} triplets)")
+            print(f"Passages used: {len(selected_passages)}, tokens: {total_tokens}")
             
             return generated_answer
 
         except Exception as e:
-            error_msg = f"❌ OpenAI API error with Dense KG context: {str(e)}"
+            error_msg = f"OpenAI API error with Dense KG context: {str(e)}"
             print(error_msg)
             return error_msg
 
@@ -359,10 +432,28 @@ class OpenAIGeneratorKG:
         context_graph: str,
         doc_stats: Dict[str, Any]
     ) -> str:
-        """Génère le prompt adaptatif avec templates chargés depuis fichiers"""
+        """
+        Generate adaptive prompt with templates loaded from files.
+        
+        Constructs context-appropriate prompts using externalized templates based
+        on available context types and relevance assessment results.
+        
+        Args:
+            prompt_type (str): Type of prompt strategy to use
+            query (str): User query
+            context_rerank (str): Document context from reranking
+            context_graph (str): Knowledge graph context
+            doc_stats (Dict[str, Any]): Document relevance statistics
+            
+        Returns:
+            str: Complete formatted prompt for generation
+            
+        Raises:
+            ValueError: If unknown prompt type is specified
+        """
         
         if prompt_type not in self.prompts:
-            raise ValueError(f"Type de prompt inconnu: {prompt_type}. Disponibles: {list(self.prompts.keys())}")
+            raise ValueError(f"Unknown prompt type: {prompt_type}. Available: {list(self.prompts.keys())}")
         
         template = self.prompts[prompt_type]
         
@@ -388,17 +479,25 @@ class OpenAIGeneratorKG:
             )
 
     def get_generation_stats(self) -> Dict[str, Any]:
-        """Retourne les statistiques de configuration du générateur"""
+        """
+        Return comprehensive generator configuration statistics.
+        
+        Provides detailed configuration information for monitoring, debugging,
+        and performance analysis purposes.
+        
+        Returns:
+            Dict[str, Any]: Complete generator configuration and capabilities
+        """
         return {
             "model": self.model,
             "max_context_chunks": self.max_context_chunks,
             "context_token_limit": self.context_token_limit,
             "max_tokens": self.max_tokens,
             "max_triplets": self.max_triplets,
-            "seuil_pertinence": self.seuil_pertinence,  # 🔧 Nom cohérent avec settings.yaml
+            "relevance_threshold": self.relevance_threshold,
             "importance_context_rerank": self.importance_context_rerank,
             "importance_context_graph": self.importance_context_graph,
             "prompts_loaded": len(self.prompts),
             "kg_type": "dense",
-            "multi_query_support": True  # 🆕 Indicateur Multi-Query
+            "multi_query_support": True
         }

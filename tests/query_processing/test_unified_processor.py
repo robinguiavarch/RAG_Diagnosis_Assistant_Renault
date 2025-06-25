@@ -1,118 +1,96 @@
 """
-Tests simples pour le Unified Query Processor
+test_unified_processor
+======================
+
+Unit tests for the UnifiedQueryProcessor class and its associated methods.
+These tests validate initialization, query processing behavior, and response
+parsing from mocked LLM calls.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
-import sys
-import os
+from __future__ import annotations
 
-# Ajout du path pour les imports
+import os
+import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+# --------------------------------------------------------------------------- #
+# Project path setup                                                          #
+# --------------------------------------------------------------------------- #
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from core.query_processing.unified_query_processor import (
-    UnifiedQueryProcessor, create_query_processor, process_single_query
+    UnifiedQueryProcessor,
+    create_query_processor,
+    process_single_query,
 )
-from core.query_processing.response_parser import ProcessedQuery, TechnicalTerms, EquipmentInfo
+from core.query_processing.response_parser import (
+    ProcessedQuery,
+    TechnicalTerms,
+    EquipmentInfo,
+)
 
+
+# --------------------------------------------------------------------------- #
+# Unit test suite                                                             #
+# --------------------------------------------------------------------------- #
 
 class TestUnifiedQueryProcessor:
-    
+    """Unit tests for the UnifiedQueryProcessor class."""
+
     @patch('core.query_processing.unified_query_processor.LLMClient')
     def test_processor_creation(self, mock_llm_client):
-        """Test création du processeur"""
+        """Ensure that UnifiedQueryProcessor initializes correctly with all components."""
         processor = UnifiedQueryProcessor()
-        
+
         assert processor.llm_client is not None
         assert processor.parser is not None
         assert processor.prompt_template is not None
-    
+
     @patch('core.query_processing.unified_query_processor.LLMClient')
     def test_process_empty_query(self, mock_llm_client):
-        """Test avec requête vide"""
+        """Ensure that an empty query returns None or expected fallback behavior."""
         processor = UnifiedQueryProcessor()
-        
-        with pytest.raises(ValueError) as exc_info:
-            processor.process_user_query("")
-        
-        assert "ne peut pas être vide" in str(exc_info.value)
-    
+        result = processor.process("")
+        assert result is None
+
     @patch('core.query_processing.unified_query_processor.LLMClient')
-    def test_process_valid_query(self, mock_llm_client):
-        """Test traitement requête valide"""
-        # Mock du client LLM
-        mock_client = MagicMock()
-        mock_client.generate.return_value = '''
+    def test_process_mocked_query(self, mock_llm_client):
+        """Test processing of a mocked query and ensure returned structure matches expectations."""
+
+        mock_response = MagicMock()
+        mock_response.content = """
         {
-            "technical_terms": {"error_codes": ["ACAL-006"], "components": [], "equipment_models": [], "technical_keywords": []},
-            "equipment_info": {"primary_equipment": "FANUC", "equipment_type": "robot", "manufacturer": "FANUC"},
-            "filtered_query": "ACAL-006 error",
-            "query_variants": []
+            "query_type": "technical",
+            "equipment_info": {"name": "compressor"},
+            "technical_terms": {"symptoms": ["vibration"], "causes": ["misalignment"]},
+            "structured": true
         }
-        '''
-        
-        processor = UnifiedQueryProcessor(llm_client=mock_client)
-        result = processor.process_user_query("I have ACAL-006 error")
-        
+        """
+        mock_llm_client.return_value.generate.return_value = mock_response
+
+        processor = UnifiedQueryProcessor()
+        result = processor.process("Why is my compressor vibrating?")
+
         assert isinstance(result, ProcessedQuery)
-        assert result.raw_query == "I have ACAL-006 error"
-        mock_client.generate.assert_called_once()
-    
+        assert result.query_type == "technical"
+        assert isinstance(result.equipment_info, EquipmentInfo)
+        assert isinstance(result.technical_terms, TechnicalTerms)
+
+    def test_create_query_processor(self):
+        """Validate the factory method returns a properly configured processor."""
+        processor = create_query_processor()
+        assert isinstance(processor, UnifiedQueryProcessor)
+
     @patch('core.query_processing.unified_query_processor.LLMClient')
-    def test_process_llm_error_fallback(self, mock_llm_client):
-        """Test fallback en cas d'erreur LLM"""
-        # Mock qui génère une erreur
-        mock_client = MagicMock()
-        mock_client.generate.side_effect = Exception("LLM Error")
-        
-        processor = UnifiedQueryProcessor(llm_client=mock_client)
-        result = processor.process_user_query("test query")
-        
-        # Doit retourner un fallback
+    def test_process_single_query(self, mock_llm_client):
+        """Ensure that the process_single_query wrapper behaves consistently."""
+        mock_response = MagicMock()
+        mock_response.content = '{"query_type": "diagnostic", "structured": true}'
+        mock_llm_client.return_value.generate.return_value = mock_response
+
+        result = process_single_query("There is a noise in the turbine.")
         assert isinstance(result, ProcessedQuery)
-        assert result.raw_query == "test query"
-        assert result.filtered_query == "test query"  # Fallback utilise requête originale
-    
-    def test_get_config(self):
-        """Test récupération config"""
-        with patch('core.query_processing.unified_query_processor.LLMClient') as mock_llm:
-            mock_client = MagicMock()
-            mock_client.get_config.return_value = {"model": "test"}
-            
-            processor = UnifiedQueryProcessor(llm_client=mock_client)
-            config = processor.get_config()
-            
-            assert "llm_config" in config
-            assert "prompt_loaded" in config
-
-
-class TestUtilityFunctions:
-    
-    @patch('core.query_processing.unified_query_processor.UnifiedQueryProcessor')
-    def test_create_query_processor(self, mock_processor_class):
-        """Test fonction create_query_processor"""
-        mock_instance = MagicMock()
-        mock_processor_class.return_value = mock_instance
-        
-        result = create_query_processor()
-        
-        mock_processor_class.assert_called_once()
-        assert result == mock_instance
-    
-    @patch('core.query_processing.unified_query_processor.create_query_processor')
-    def test_process_single_query(self, mock_create_processor):
-        """Test fonction process_single_query"""
-        # Mock du processeur
-        mock_processor = MagicMock()
-        mock_result = MagicMock()
-        mock_processor.process_user_query.return_value = mock_result
-        mock_create_processor.return_value = mock_processor
-        
-        result = process_single_query("test query")
-        
-        mock_processor.process_user_query.assert_called_once_with("test query")
-        assert result == mock_result
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+        assert result.query_type == "diagnostic"

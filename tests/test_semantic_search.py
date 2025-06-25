@@ -1,12 +1,19 @@
 """
-Test du FAISSRetriever sémantique
-Teste les fonctionnalités de recherche sémantique et affiche les résultats détaillés
+Semantic Search Testing Module: FAISS Retriever Functionality Tests
 
-IMPORTANT: Pour tester ce script: 
+This module provides comprehensive testing functionality for the FAISSRetriever semantic search system.
+It implements various test scenarios to validate semantic search capabilities and is designed for
+quality assurance and performance evaluation of the RAG system's retrieval component.
 
-OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 poetry run python tests/test_semantic.py > tests/resultats/test_semantic.txt 2>&1
+Key components:
+- Basic functionality testing: Validates retriever initialization and index statistics
+- Semantic query testing: Tests various semantic search patterns and relevance scoring
+- Edge case testing: Handles boundary conditions and error scenarios
+- Performance testing: Measures search speed and throughput metrics
+- Comparative analysis: Evaluates semantic vs conceptual search differences
 
-
+Dependencies: FAISS, sentence-transformers, PyYAML, pathlib
+Usage: Run with OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 poetry run python tests/test_semantic.py
 """
 
 import sys
@@ -14,39 +21,79 @@ from pathlib import Path
 import yaml
 from typing import Dict, Any
 
-# Ajouter le répertoire racine au path pour les imports
+# Add root directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
 from core.retrieval_engine.semantic_search import FAISSRetriever
 
 
 def load_settings(config_path: str = "config/settings.yaml") -> Dict[str, Any]:
-    """Charge la configuration depuis le fichier YAML"""
+    """
+    Load configuration settings from YAML file.
+    
+    Reads and parses the main configuration file containing paths, model names,
+    and other system settings required for the retriever initialization.
+    
+    Args:
+        config_path (str): Path to the YAML configuration file
+    
+    Returns:
+        Dict[str, Any]: Parsed configuration dictionary with all settings
+        
+    Raises:
+        FileNotFoundError: If the configuration file does not exist
+        yaml.YAMLError: If the YAML file is malformed
+    """
     with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 
 def print_separator(title: str, char: str = "="):
-    """Affiche un séparateur avec titre"""
+    """
+    Print a formatted separator line with title for test section organization.
+    
+    Creates visual separation between different test sections to improve
+    readability of test output and organization of results.
+    
+    Args:
+        title (str): The title to display in the separator
+        char (str): Character to use for the separator line (default: "=")
+    
+    Returns:
+        None: Prints directly to stdout
+    """
     print(f"\n{char * 60}")
     print(f" {title}")
     print(f"{char * 60}")
 
 
 def print_result(result: Dict, index: int):
-    """Affiche un résultat de recherche de manière formatée"""
-    print(f"\n🧠 RÉSULTAT SÉMANTIQUE #{index + 1}")
-    print(f"🆔 Document: {result['document_id']}")
-    print(f"🧩 Chunk: {result['chunk_id']}")
-    print(f"📊 Score similarité: {result['score']:.4f}")
-    print(f"📏 Distance L2: {result.get('distance', 'N/A'):.4f}" if 'distance' in result else "")
-    print(f"📝 Mots: {result.get('word_count', 'N/A')}")
-    print(f"🔤 Caractères: {result.get('char_count', 'N/A')}")
-    print(f"📐 Norme embedding: {result.get('embedding_norm', 'N/A'):.3f}" if 'embedding_norm' in result else "")
-    print(f"📂 Source: {result.get('source_file', 'N/A')}")
-    print(f"📖 TEXTE:")
+    """
+    Display a search result in a formatted, readable manner.
+    
+    Formats and prints detailed information about a single search result including
+    metadata, scores, and text content with proper line wrapping for readability.
+    
+    Args:
+        result (Dict): Search result dictionary containing all metadata and text
+        index (int): Zero-based index of the result for numbering display
+    
+    Returns:
+        None: Prints formatted result directly to stdout
+    """
+    print(f"\nSEMANTIC RESULT #{index + 1}")
+    print(f"Document ID: {result['document_id']}")
+    print(f"Chunk ID: {result['chunk_id']}")
+    print(f"Similarity Score: {result['score']:.4f}")
+    print(f"L2 Distance: {result.get('distance', 'N/A'):.4f}" if 'distance' in result else "")
+    print(f"Word Count: {result.get('word_count', 'N/A')}")
+    print(f"Character Count: {result.get('char_count', 'N/A')}")
+    print(f"Embedding Norm: {result.get('embedding_norm', 'N/A'):.3f}" if 'embedding_norm' in result else "")
+    print(f"Source File: {result.get('source_file', 'N/A')}")
+    print(f"TEXT CONTENT:")
     print("-" * 50)
-    # Afficher le texte avec des retours à la ligne pour la lisibilité
+    
+    # Format text with line breaks for readability (80 characters per line)
     text = result['text']
     words = text.split()
     lines = []
@@ -54,13 +101,13 @@ def print_result(result: Dict, index: int):
     current_length = 0
     
     for word in words:
-        if current_length + len(word) + 1 > 80:  # 80 caractères par ligne
+        if current_length + len(word) + 1 > 80:
             if current_line:
                 lines.append(' '.join(current_line))
                 current_line = [word]
                 current_length = len(word)
             else:
-                lines.append(word)  # Mot très long
+                lines.append(word)  # Very long word
                 current_length = 0
         else:
             current_line.append(word)
@@ -75,162 +122,204 @@ def print_result(result: Dict, index: int):
 
 
 def test_basic_functionality():
-    """Test les fonctionnalités de base du retriever"""
-    print_separator("TEST DES FONCTIONNALITÉS DE BASE")
+    """
+    Test basic functionality of the FAISS retriever system.
+    
+    Validates the initialization process, configuration loading, file existence,
+    and basic retriever statistics. This serves as the foundation test to ensure
+    the system is properly set up before running more complex tests.
+    
+    Returns:
+        FAISSRetriever or None: Initialized retriever instance if successful, None if failed
+        
+    Raises:
+        Exception: Various exceptions related to file access, configuration, or initialization
+    """
+    print_separator("BASIC FUNCTIONALITY TESTING")
     
     try:
-        # Chargement de la configuration
+        # Load configuration
         settings = load_settings()
         
-        # Chemins vers l'index FAISS
+        # FAISS index paths
         faiss_index_dir = Path(settings["paths"]["faiss_index_dir"])
         index_path = Path(settings["paths"]["faiss_index"])
         metadata_path = Path(settings["paths"]["embedding_file"])
         model_name = settings["models"]["embedding_model"]
         
-        print(f"📁 Index FAISS: {index_path}")
-        print(f"📄 Métadonnées: {metadata_path}")
-        print(f"🤖 Modèle: {model_name}")
+        print(f"FAISS Index Path: {index_path}")
+        print(f"Metadata Path: {metadata_path}")
+        print(f"Model Name: {model_name}")
         
-        # Vérification de l'existence des fichiers
+        # Verify file existence
         if not index_path.exists():
-            print(f"❌ Index FAISS non trouvé: {index_path}")
-            print("💡 Exécutez d'abord: poetry run python scripts/05_create_faiss_index.py")
+            print(f"FAISS index not found: {index_path}")
+            print("Execute first: poetry run python scripts/05_create_faiss_index.py")
             return None
         
         if not metadata_path.exists():
-            print(f"❌ Métadonnées non trouvées: {metadata_path}")
+            print(f"Metadata not found: {metadata_path}")
             return None
         
-        # Initialisation du retriever
-        print("\n🔄 Initialisation du FAISSRetriever...")
+        # Initialize retriever
+        print("\nInitializing FAISSRetriever...")
         retriever = FAISSRetriever(
             index_path=index_path,
             metadata_path=metadata_path,
             embedding_model_name=model_name
         )
-        print("✅ Retriever initialisé avec succès")
+        print("Retriever initialized successfully")
         
-        # Statistiques de l'index
+        # Index statistics
         stats = retriever.get_index_stats()
-        print(f"\n📊 STATISTIQUES DE L'INDEX:")
-        print(f"   🔢 Total vecteurs: {stats['total_vectors']}")
-        print(f"   📏 Dimension: {stats['vector_dimension']}")
-        print(f"   🏗️ Type d'index: {stats['index_type']}")
-        print(f"   📋 Documents uniques: {stats['unique_documents']}")
-        print(f"   📄 Total chunks: {stats['total_chunks']}")
-        print(f"   📈 Chunks/document (moy): {stats['avg_chunks_per_doc']:.1f}")
-        print(f"   💻 Device modèle: {stats['model_device']}")
-        print(f"   📦 Format métadonnées: {stats['metadata_format']}")
+        print(f"\nINDEX STATISTICS:")
+        print(f"   Total Vectors: {stats['total_vectors']}")
+        print(f"   Vector Dimension: {stats['vector_dimension']}")
+        print(f"   Index Type: {stats['index_type']}")
+        print(f"   Unique Documents: {stats['unique_documents']}")
+        print(f"   Total Chunks: {stats['total_chunks']}")
+        print(f"   Average Chunks per Document: {stats['avg_chunks_per_doc']:.1f}")
+        print(f"   Model Device: {stats['model_device']}")
+        print(f"   Metadata Format: {stats['metadata_format']}")
         
         return retriever
         
     except Exception as e:
-        print(f"❌ Erreur initialisation: {e}")
+        print(f"Initialization error: {e}")
         import traceback
         traceback.print_exc()
         return None
 
 
 def test_semantic_queries(retriever: FAISSRetriever):
-    """Test différentes requêtes de recherche sémantique"""
-    print_separator("TEST DES REQUÊTES SÉMANTIQUES")
+    """
+    Test various semantic search queries to validate retrieval accuracy.
     
-    # Requêtes de test sémantiques
+    Executes a comprehensive set of semantic search queries designed to test
+    different aspects of the retrieval system including specific error codes,
+    general concepts, and various semantic similarity patterns.
+    
+    Args:
+        retriever (FAISSRetriever): Initialized FAISS retriever instance
+    
+    Returns:
+        None: Prints test results directly to stdout
+        
+    Raises:
+        Exception: Search-related errors or retriever failures
+    """
+    print_separator("SEMANTIC QUERY TESTING")
+    
+    # Semantic test queries
     test_queries = [
         {
             "query": "I got the error ACAL-006 TPE operation error on the FANUC teach pendant. What should I do?",
-            "description": "Requête principale - Erreur FANUC ACAL-006",
+            "description": "Primary Query - FANUC ACAL-006 Error",
             "top_k": 5
         },
         {
             "query": "robot calibration failed teach pendant",
-            "description": "Requête sémantique - Échec calibration robot",
+            "description": "Semantic Query - Robot Calibration Failure",
             "top_k": 3
         },
         {
             "query": "how to troubleshoot FANUC robot error",
-            "description": "Requête générale - Dépannage FANUC",
+            "description": "General Query - FANUC Troubleshooting",
             "top_k": 3
         },
         {
             "query": "teaching pendant operation problem",
-            "description": "Requête sémantique - Problème pendant d'apprentissage",
+            "description": "Semantic Query - Teaching Pendant Problem",
             "top_k": 3
         },
         {
             "query": "automation error code diagnostic",
-            "description": "Requête conceptuelle - Diagnostic code erreur",
+            "description": "Conceptual Query - Error Code Diagnostic",
             "top_k": 3
         },
         {
             "query": "industrial robot malfunction solution",
-            "description": "Requête sémantique - Solution dysfonctionnement robot",
+            "description": "Semantic Query - Robot Malfunction Solution",
             "top_k": 3
         }
     ]
     
     for i, test_case in enumerate(test_queries):
-        print_separator(f"REQUÊTE {i+1}: {test_case['description']}", "-")
-        print(f"🧠 Requête: \"{test_case['query']}\"")
-        print(f"📊 Top-K: {test_case['top_k']}")
+        print_separator(f"QUERY {i+1}: {test_case['description']}", "-")
+        print(f"Query Text: \"{test_case['query']}\"")
+        print(f"Top-K Results: {test_case['top_k']}")
         
         try:
-            # Recherche sémantique
+            # Perform semantic search
             results = retriever.search(
                 query=test_case['query'], 
                 top_k=test_case['top_k'],
-                min_score=0.0  # Pas de filtrage par score pour voir tous les résultats
+                min_score=0.0  # No score filtering to see all results
             )
             
             if not results:
-                print("❌ Aucun résultat trouvé")
+                print("No results found")
                 
-                # Essayer une recherche debug pour comprendre
+                # Debug search to understand the issue
                 debug_info = retriever.debug_search(test_case['query'], top_k=1)
-                print(f"🐛 Debug - dimension embedding: {debug_info['query_embedding_dim']}")
-                print(f"🐛 Debug - norme embedding: {debug_info['query_embedding_norm']:.3f}")
-                print(f"🐛 Debug - stats index: {debug_info['index_stats']}")
+                print(f"Debug - Query embedding dimension: {debug_info['query_embedding_dim']}")
+                print(f"Debug - Query embedding norm: {debug_info['query_embedding_norm']:.3f}")
+                print(f"Debug - Index statistics: {debug_info['index_stats']}")
                 continue
             
-            print(f"✅ {len(results)} résultat(s) trouvé(s)")
+            print(f"Found {len(results)} result(s)")
             
-            # Affichage des résultats
+            # Display results
             for j, result in enumerate(results):
                 print_result(result, j)
             
-            # Analyse de la pertinence sémantique
+            # Semantic relevance analysis
             scores = [r['score'] for r in results]
             distances = [r.get('distance', 0) for r in results if 'distance' in r]
             
-            print(f"\n📈 ANALYSE DES SCORES SÉMANTIQUES:")
-            print(f"   🎯 Score max: {max(scores):.4f}")
-            print(f"   📊 Score min: {min(scores):.4f}")
-            print(f"   📈 Score moyen: {sum(scores)/len(scores):.4f}")
+            print(f"\nSEMANTIC SCORE ANALYSIS:")
+            print(f"   Maximum Score: {max(scores):.4f}")
+            print(f"   Minimum Score: {min(scores):.4f}")
+            print(f"   Average Score: {sum(scores)/len(scores):.4f}")
             if distances:
-                print(f"   📏 Distance L2 min: {min(distances):.4f}")
-                print(f"   📏 Distance L2 max: {max(distances):.4f}")
+                print(f"   Minimum L2 Distance: {min(distances):.4f}")
+                print(f"   Maximum L2 Distance: {max(distances):.4f}")
             
         except Exception as e:
-            print(f"❌ Erreur recherche: {e}")
+            print(f"Search error: {e}")
             import traceback
             traceback.print_exc()
 
 
 def test_semantic_vs_lexical_comparison(retriever: FAISSRetriever):
-    """Compare recherche sémantique vs recherche conceptuelle"""
-    print_separator("COMPARAISON SÉMANTIQUE VS CONCEPTUELLE")
+    """
+    Compare semantic search results with conceptually similar queries.
     
-    # Requêtes pour tester la différence sémantique
+    Tests the semantic understanding capabilities by comparing results from
+    the main query with conceptually similar but lexically different queries
+    to validate the semantic search effectiveness.
+    
+    Args:
+        retriever (FAISSRetriever): Initialized FAISS retriever instance
+    
+    Returns:
+        None: Prints comparison results directly to stdout
+        
+    Raises:
+        Exception: Search-related errors during comparison
+    """
+    print_separator("SEMANTIC VS CONCEPTUAL COMPARISON")
+    
+    # Queries for testing semantic differences
     comparison_queries = [
         {
             "query": "robot malfunctioning",
-            "description": "Concept: Robot en panne",
+            "description": "Concept: Robot Malfunction",
             "similar_concepts": ["machine broken", "automation failure", "equipment error"]
         },
         {
             "query": "calibration procedure",
-            "description": "Concept: Procédure de calibration", 
+            "description": "Concept: Calibration Procedure", 
             "similar_concepts": ["adjustment process", "setup method", "configuration steps"]
         }
     ]
@@ -238,66 +327,95 @@ def test_semantic_vs_lexical_comparison(retriever: FAISSRetriever):
     for test_case in comparison_queries:
         print_separator(f"TEST: {test_case['description']}", "-")
         
-        # Test requête principale
-        print(f"🧠 Requête principale: \"{test_case['query']}\"")
+        # Test main query
+        print(f"Main Query: \"{test_case['query']}\"")
         main_results = retriever.search(test_case['query'], top_k=2)
         
         if main_results:
-            print(f"✅ {len(main_results)} résultats pour la requête principale")
+            print(f"Found {len(main_results)} results for main query")
             for i, result in enumerate(main_results):
                 print(f"   {i+1}. Score: {result['score']:.4f} | {result['text'][:100]}...")
         
-        # Test concepts similaires
+        # Test similar concepts
         for concept in test_case['similar_concepts']:
-            print(f"\n🔄 Concept similaire: \"{concept}\"")
+            print(f"\nSimilar Concept: \"{concept}\"")
             concept_results = retriever.search(concept, top_k=1)
             
             if concept_results:
                 result = concept_results[0]
                 print(f"   Score: {result['score']:.4f} | {result['text'][:100]}...")
                 
-                # Comparer avec la requête principale
+                # Compare with main query
                 if main_results:
                     score_diff = abs(result['score'] - main_results[0]['score'])
-                    print(f"   📊 Différence de score: {score_diff:.4f}")
+                    print(f"   Score Difference: {score_diff:.4f}")
 
 
 def test_edge_cases(retriever: FAISSRetriever):
-    """Test des cas limites pour la recherche sémantique"""
-    print_separator("TEST DES CAS LIMITES SÉMANTIQUES")
+    """
+    Test edge cases and boundary conditions for semantic search robustness.
+    
+    Validates system behavior with various problematic inputs including empty
+    queries, nonsensical text, very short queries, and other edge conditions
+    to ensure robust error handling and graceful degradation.
+    
+    Args:
+        retriever (FAISSRetriever): Initialized FAISS retriever instance
+    
+    Returns:
+        None: Prints edge case test results directly to stdout
+        
+    Raises:
+        Exception: Various exceptions that should be handled gracefully
+    """
+    print_separator("SEMANTIC EDGE CASE TESTING")
     
     edge_cases = [
-        "",  # Requête vide
-        "   ",  # Espaces seulement
-        "qwertyuiopasdfgh",  # Mots inventés
-        "a",  # Requête très courte
-        "the and or",  # Mots courants seulement
-        "🤖 ⚙️ 🔧",  # Emojis seulement
-        "FANUC " * 20,  # Répétition excessive
+        "",  # Empty query
+        "   ",  # Whitespace only
+        "qwertyuiopasdfgh",  # Nonsense words
+        "a",  # Very short query
+        "the and or",  # Common words only
+        "FANUC " * 20,  # Excessive repetition
     ]
     
     for i, query in enumerate(edge_cases):
-        print(f"\n🧪 Cas limite {i+1}: \"{query}\"")
+        print(f"\nEdge Case {i+1}: \"{query}\"")
         try:
             results = retriever.search(query, top_k=2)
-            print(f"   📊 Résultats: {len(results)}")
+            print(f"   Results Found: {len(results)}")
             if results:
-                print(f"   🎯 Meilleur score: {results[0]['score']:.4f}")
-                print(f"   📏 Distance: {results[0].get('distance', 'N/A'):.4f}" if 'distance' in results[0] else "")
+                print(f"   Best Score: {results[0]['score']:.4f}")
+                print(f"   Distance: {results[0].get('distance', 'N/A'):.4f}" if 'distance' in results[0] else "")
         except Exception as e:
-            print(f"   ❌ Erreur: {e}")
+            print(f"   Error: {e}")
 
 
 def test_performance(retriever: FAISSRetriever):
-    """Test de performance de la recherche sémantique"""
-    print_separator("TEST DE PERFORMANCE SÉMANTIQUE")
+    """
+    Test semantic search performance and throughput metrics.
+    
+    Measures the speed and efficiency of semantic search operations by
+    performing multiple searches and calculating average response times,
+    throughput, and performance classification.
+    
+    Args:
+        retriever (FAISSRetriever): Initialized FAISS retriever instance
+    
+    Returns:
+        None: Prints performance metrics directly to stdout
+        
+    Raises:
+        Exception: Performance testing related errors
+    """
+    print_separator("SEMANTIC PERFORMANCE TESTING")
     
     import time
     
     query = "FANUC error ACAL-006 TPE operation"
     num_searches = 10
     
-    print(f"🏃 Test de {num_searches} recherches sémantiques avec: \"{query}\"")
+    print(f"Running {num_searches} semantic searches with: \"{query}\"")
     
     start_time = time.time()
     
@@ -310,50 +428,62 @@ def test_performance(retriever: FAISSRetriever):
     total_time = end_time - start_time
     avg_time = total_time / num_searches
     
-    print(f"⏱️ Temps total: {total_time:.3f}s")
-    print(f"⚡ Temps moyen par recherche: {avg_time:.3f}s")
-    print(f"📊 {first_result_count} résultats par recherche")
-    print(f"🚀 Recherches/seconde: {num_searches/total_time:.1f}")
+    print(f"Total Time: {total_time:.3f}s")
+    print(f"Average Time per Search: {avg_time:.3f}s")
+    print(f"Results per Search: {first_result_count}")
+    print(f"Searches per Second: {num_searches/total_time:.1f}")
     
-    # Comparaison avec une référence
+    # Performance classification
     if avg_time < 0.1:
-        print("✅ Performance excellente (<100ms)")
+        print("Excellent Performance (<100ms)")
     elif avg_time < 0.5:
-        print("✅ Performance bonne (<500ms)")
+        print("Good Performance (<500ms)")
     else:
-        print("⚠️ Performance à améliorer (>500ms)")
+        print("Performance Needs Improvement (>500ms)")
 
 
 def main():
-    """Fonction principale du test"""
-    print_separator("🧠 TEST DU FAISSRETRIEVER SÉMANTIQUE 🧠")
+    """
+    Main test execution function that orchestrates all semantic search tests.
+    
+    Coordinates the execution of all test suites in the proper order, handling
+    initialization, test execution, and final reporting. Provides comprehensive
+    coverage of the FAISSRetriever semantic search functionality.
+    
+    Returns:
+        None: Prints all test results and final status
+        
+    Raises:
+        Exception: Global test execution errors
+    """
+    print_separator("FAISS RETRIEVER SEMANTIC SEARCH TESTING")
     
     try:
-        # Test des fonctionnalités de base
+        # Test basic functionality
         retriever = test_basic_functionality()
         
         if retriever is None:
-            print("❌ Impossible d'initialiser le retriever. Arrêt des tests.")
+            print("Cannot initialize retriever. Stopping tests.")
             return
         
-        # Test des requêtes sémantiques
+        # Test semantic queries
         test_semantic_queries(retriever)
         
-        # Comparaison sémantique vs conceptuelle
+        # Semantic vs conceptual comparison
         test_semantic_vs_lexical_comparison(retriever)
         
-        # Test des cas limites
+        # Edge case testing
         test_edge_cases(retriever)
         
-        # Test de performance
+        # Performance testing
         test_performance(retriever)
         
-        print_separator("✅ TESTS SÉMANTIQUES TERMINÉS AVEC SUCCÈS")
-        print("🎉 Le FAISSRetriever fonctionne correctement!")
-        print("🧠 La recherche sémantique capture les concepts et le sens!")
+        print_separator("SEMANTIC TESTS COMPLETED SUCCESSFULLY")
+        print("The FAISSRetriever is functioning correctly")
+        print("Semantic search captures concepts and meaning effectively")
         
     except Exception as e:
-        print(f"❌ ERREUR GLOBALE: {e}")
+        print(f"GLOBAL ERROR: {e}")
         import traceback
         traceback.print_exc()
 

@@ -1,15 +1,21 @@
 """
-Construction Knowledge Graph Dense avec métrique hybride AUTONOME
-Métrique: Cosine + Jaccard + Levenshtein (sans dépendances externes)
-Pour lancer: 
-docker run --rm \
-  -v $(pwd)/.env:/app/.env \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/pipeline_step:/app/pipeline_step \
-  --network host \
-  diagnosis-app \
-  poetry run python pipeline_step/knowledge_graph_setup/build_dense_knowledge_graph.py
+Dense Knowledge Graph Construction with Autonomous Hybrid Metric
+
+This module constructs a Dense Knowledge Graph using an autonomous hybrid metric that combines
+Cosine, Jaccard, and Levenshtein similarities. The system creates an enriched graph structure
+where symptoms can be connected to multiple causes through semantic similarity propagation,
+providing enhanced relationship modeling for the RAG diagnosis system.
+
+Key components:
+- Autonomous hybrid metric: Self-contained similarity calculation without external dependencies
+- Dense graph construction: Creates enriched relationships through similarity propagation
+- Equipment-aware modeling: Incorporates equipment metadata throughout the graph structure
+- Cloud/local connectivity: Intelligent connection management for Neo4j deployments
+
+Dependencies: neo4j, pandas, numpy, pyyaml, python-dotenv, sentence-transformers, scikit-learn
+Usage: docker run --rm -v $(pwd)/.env:/app/.env -v $(pwd)/data:/app/data 
+       -v $(pwd)/config:/app/config -v $(pwd)/pipeline_step:/app/pipeline_step 
+       --network host diagnosis-app poetry run python pipeline_step/knowledge_graph_setup/build_dense_knowledge_graph.py
 """
 
 import os
@@ -19,14 +25,19 @@ from neo4j import GraphDatabase
 from dotenv import load_dotenv
 import yaml
 
-# === Import de la métrique hybride autonome ===
+# Import autonomous hybrid metric
 from hybrid_metric_build_kgs import create_autonomous_hybrid_metric
 
-# === Chargement des variables d'environnement (.env) ===
+# Load environment variables from .env
 load_dotenv()
 
 def load_settings():
-    """Charge la configuration depuis settings.yaml"""
+    """
+    Load configuration from settings.yaml file
+    
+    Returns:
+        dict: Loaded configuration settings
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(script_dir, "..", "..", "config", "settings.yaml")
     
@@ -35,16 +46,24 @@ def load_settings():
 
 def get_neo4j_connection(kg_type="dense"):
     """
-    🌐 Connexion intelligente Cloud/Local
-    kg_type: "dense", "sparse", ou "dense_sc"
+    Establish intelligent Cloud/Local Neo4j connection
+    
+    Implements cloud-first connection strategy with automatic local fallback.
+    Supports multiple Knowledge Graph types with appropriate credential selection.
+    
+    Args:
+        kg_type (str): Knowledge Graph type ("dense", "sparse", or "dense_sc")
+        
+    Returns:
+        neo4j.Driver: Configured Neo4j database driver
     """
     load_dotenv()
     
-    # Priorité au Cloud si activé
+    # Priority to Cloud if enabled
     cloud_enabled = os.getenv("NEO4J_CLOUD_ENABLED", "false").lower() == "true"
     
     if cloud_enabled:
-        print(f"🌐 MODE CLOUD pour {kg_type.upper()}")
+        print(f"CLOUD MODE for {kg_type.upper()}")
         
         if kg_type == "dense":
             uri = os.getenv("NEO4J_DENSE_CLOUD_URI")
@@ -57,14 +76,14 @@ def get_neo4j_connection(kg_type="dense"):
             password = os.getenv("NEO4J_DENSE_SC_CLOUD_PASS")
         
         if uri and password:
-            print(f"🔌 Connexion Cloud {kg_type}: {uri}")
+            print(f"Cloud connection {kg_type}: {uri}")
             return GraphDatabase.driver(uri, auth=("neo4j", password))
         else:
-            print(f"❌ Credentials cloud manquants pour {kg_type}")
+            print(f"Missing cloud credentials for {kg_type}")
             cloud_enabled = False
     
-    # Fallback Local
-    print(f"🏠 MODE LOCAL pour {kg_type.upper()}")
+    # Local fallback
+    print(f"LOCAL MODE for {kg_type.upper()}")
     
     if kg_type == "dense":
         uri = os.getenv("NEO4J_URI_DENSE", "bolt://host.docker.internal:7687")
@@ -79,64 +98,90 @@ def get_neo4j_connection(kg_type="dense"):
         user = os.getenv("NEO4J_USER_DENSE_SC", "neo4j")
         password = os.getenv("NEO4J_PASS_DENSE_SC", "password")
     
-    print(f"🔌 Connexion Local {kg_type}: {uri}")
+    print(f"Local connection {kg_type}: {uri}")
     return GraphDatabase.driver(uri, auth=(user, password))
 
-# === PARAMÈTRES ===
+# Configuration parameters
 script_dir = os.path.dirname(os.path.abspath(__file__))
 CSV_PATH = os.path.join(script_dir, "..", "..", "data", "knowledge_base", "scr_triplets", "doc-R-30iB_scr_triplets.csv")
 
-
-# Configuration depuis settings.yaml
+# Configuration from settings.yaml
 config = load_settings()
 SIM_THRESHOLD = config["graph_retrieval"]["dense_similarity_threshold"]
 TOP_K = config["graph_retrieval"]["dense_top_k_similar"]
 
-# === CONNEXION NEO4J ===
+# Neo4j connection
 driver = get_neo4j_connection("dense")
 
-# === CHARGEMENT ET NETTOYAGE DES DONNÉES ===
 def load_and_clean_data():
-    """Charge et nettoie les données CSV en supprimant les doublons"""
-    print("📂 Chargement du fichier CSV...")
+    """
+    Load and clean CSV data by removing duplicates and null values
+    
+    Performs comprehensive data validation and cleaning including duplicate removal,
+    null value handling, and equipment metadata validation. Provides detailed
+    statistics on data quality and equipment distribution.
+    
+    Returns:
+        pd.DataFrame: Cleaned and validated dataset ready for graph construction
+        
+    Raises:
+        ValueError: When required 'equipment' column is missing from the dataset
+    """
+    print("Loading CSV file...")
     df = pd.read_csv(CSV_PATH)
     
-    print(f"📊 Données initiales : {len(df)} lignes")
-    print(f"📋 Colonnes détectées : {list(df.columns)}")
+    print(f"Initial data: {len(df)} rows")
+    print(f"Detected columns: {list(df.columns)}")
     
-    # Vérification que la colonne equipment existe
+    # Verify equipment column exists
     if 'equipment' not in df.columns:
-        print("❌ ERREUR: Colonne 'equipment' manquante dans le CSV")
-        print(f"📋 Colonnes disponibles : {list(df.columns)}")
-        raise ValueError("Colonne 'equipment' requise")
+        print("ERROR: Missing 'equipment' column in CSV")
+        print(f"Available columns: {list(df.columns)}")
+        raise ValueError("Required 'equipment' column")
     
-    # Suppression des lignes avec des valeurs manquantes (incluant equipment)
+    # Remove rows with missing values (including equipment)
     df.dropna(subset=["symptom", "cause", "remedy", "equipment"], inplace=True)
-    print(f"📊 Après suppression NaN : {len(df)} lignes")
+    print(f"After NaN removal: {len(df)} rows")
     
-    # Suppression des doublons exacts
+    # Remove exact duplicates
     df_before_dedup = len(df)
     df = df.drop_duplicates(subset=["symptom", "cause", "remedy", "equipment"], keep="first")
     duplicates_removed = df_before_dedup - len(df)
-    print(f"📊 Doublons supprimés : {duplicates_removed}")
-    print(f"📊 Données finales : {len(df)} lignes")
+    print(f"Duplicates removed: {duplicates_removed}")
+    print(f"Final data: {len(df)} rows")
     
-    # Affichage des équipements uniques
+    # Display unique equipment types
     unique_equipment = df['equipment'].unique()
-    print(f"🏭 Équipements uniques trouvés : {len(unique_equipment)}")
+    print(f"Unique equipment types found: {len(unique_equipment)}")
     for eq in sorted(unique_equipment):
         count = len(df[df['equipment'] == eq])
         print(f"   • {eq}: {count} triplets")
     
     return df
 
-# === ÉTAPE 1 – Création des triplets SCR avec equipment ===
 def clear_database(tx):
-    """Vide complètement la base Neo4j pour un fresh start"""
+    """
+    Completely clear the Neo4j database for fresh start
+    
+    Args:
+        tx: Neo4j transaction object
+    """
     tx.run("MATCH (n) DETACH DELETE n")
 
 def insert_triplets(tx, s, c, r, equipment):
-    """Insert un triplet avec equipment comme propriété sur chaque nœud"""
+    """
+    Insert a triplet with equipment as property on each node
+    
+    Creates or merges Symptom, Cause, and Remedy nodes with equipment metadata
+    and establishes the appropriate relationships between them.
+    
+    Args:
+        tx: Neo4j transaction object
+        s (str): Symptom text
+        c (str): Cause text
+        r (str): Remedy text
+        equipment (str): Equipment type identifier
+    """
     tx.run("""
         MERGE (sym:Symptom {name: $s})
         SET sym.equipment = $equipment
@@ -151,61 +196,91 @@ def insert_triplets(tx, s, c, r, equipment):
         MERGE (cause)-[:TREATED_BY]->(rem)
     """, s=s, c=c, r=r, equipment=equipment)
 
-# === ÉTAPE 2 – Similarité HYBRIDE AUTONOME ===
 def compute_similarity_hybrid_autonomous(symptom_list):
     """
-    🆕 Métrique hybride AUTONOME (Cosine + Jaccard + Levenshtein)
-    Pas de dépendance externe, tout intégré
+    Autonomous hybrid metric calculation (Cosine + Jaccard + Levenshtein)
+    
+    Utilizes the autonomous hybrid metric system that combines three similarity
+    measures without external dependencies. Provides fallback to standard cosine
+    similarity if the hybrid metric encounters issues.
+    
+    Args:
+        symptom_list (list): List of unique symptom texts for similarity calculation
+        
+    Returns:
+        np.ndarray: Similarity matrix with hybrid metric scores
     """
-    print("🧠 Calcul métrique hybride AUTONOME (Cosine + Jaccard + Levenshtein)...")
+    print("Computing autonomous hybrid metric (Cosine + Jaccard + Levenshtein)...")
     
     try:
-        # Configuration des poids
+        # Weight configuration
         weights = {
             'cosine_alpha': 0.4,
             'jaccard_beta': 0.4, 
             'levenshtein_gamma': 0.2
         }
         
-        print(f"⚖️ Poids configurés: {weights}")
+        print(f"Configured weights: {weights}")
         
-        # Création de la métrique hybride
+        # Create hybrid metric
         metric = create_autonomous_hybrid_metric(weights)
         
-        # Calcul de la matrice de similarité
+        # Calculate similarity matrix
         sim_matrix = metric.compute_similarity_matrix(symptom_list)
         
-        print(f"✅ Matrice de similarité HYBRIDE AUTONOME calculée : {sim_matrix.shape}")
+        print(f"Autonomous hybrid similarity matrix calculated: {sim_matrix.shape}")
         return sim_matrix
         
     except Exception as e:
-        print(f"❌ Erreur métrique hybride autonome: {e}")
-        print("🔄 Fallback vers cosine similarity standard...")
+        print(f"Error in autonomous hybrid metric: {e}")
+        print("Fallback to standard cosine similarity...")
         return compute_similarity_fallback(symptom_list)
 
 def compute_similarity_fallback(symptom_list):
-    """Fallback vers cosine similarity si métrique hybride échoue"""
+    """
+    Fallback to cosine similarity if hybrid metric fails
+    
+    Args:
+        symptom_list (list): List of symptom texts for similarity calculation
+        
+    Returns:
+        np.ndarray: Cosine similarity matrix
+    """
     from sentence_transformers import SentenceTransformer
     from sklearn.metrics.pairwise import cosine_similarity
     
-    print("🔄 Fallback: Cosine similarity standard...")
+    print("Fallback: Standard cosine similarity...")
     model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
     vectors = model.encode(symptom_list, show_progress_bar=True)
     sim_matrix = cosine_similarity(vectors)
-    np.fill_diagonal(sim_matrix, 0)  # Éviter auto-similarité
+    np.fill_diagonal(sim_matrix, 0)  # Avoid self-similarity
     return sim_matrix
 
-# === ÉTAPE 3 – Création des relations SIMILAR_TO (temporaires) ===
 def add_sim_relation(tx, s1, s2, similarity_score):
-    """Ajoute une relation SIMILAR_TO avec le score de similarité"""
+    """
+    Add a SIMILAR_TO relationship with similarity score
+    
+    Args:
+        tx: Neo4j transaction object
+        s1 (str): First symptom name
+        s2 (str): Second symptom name
+        similarity_score (float): Calculated similarity score
+    """
     tx.run("""
         MATCH (a:Symptom {name: $s1}), (b:Symptom {name: $s2})
         MERGE (a)-[:SIMILAR_TO {score: $score}]->(b)
     """, s1=s1, s2=s2, score=float(similarity_score))
 
-# === ÉTAPE 4 – Propagation CAUSES / TREATED_BY ===
 def propagate_links(tx):
-    """Propage les relations CAUSES et TREATED_BY via similarité"""
+    """
+    Propagate CAUSES and TREATED_BY relationships via similarity
+    
+    Uses SIMILAR_TO relationships to propagate causal and treatment relationships
+    from similar symptoms, creating the dense structure characteristic of this KG type.
+    
+    Args:
+        tx: Neo4j transaction object
+    """
     tx.run("""
         MATCH (s1:Symptom)-[:SIMILAR_TO]->(s2:Symptom)
         OPTIONAL MATCH (s1)-[:CAUSES]->(c:Cause)
@@ -218,14 +293,25 @@ def propagate_links(tx):
         )
     """)
 
-# === ÉTAPE 5 – Suppression des SIMILAR_TO ===
 def clean_similar(tx):
-    """Supprime toutes les relations SIMILAR_TO temporaires"""
+    """
+    Remove all temporary SIMILAR_TO relationships
+    
+    Args:
+        tx: Neo4j transaction object
+    """
     tx.run("MATCH ()-[r:SIMILAR_TO]->() DELETE r")
 
-# === STATISTIQUES ET VALIDATION ===
 def print_graph_stats(tx):
-    """Affiche les statistiques du graphe créé avec equipment"""
+    """
+    Display statistics of the created graph with equipment information
+    
+    Provides comprehensive statistics including node counts, relationship counts,
+    and equipment distribution across the dense knowledge graph.
+    
+    Args:
+        tx: Neo4j transaction object
+    """
     result = tx.run("""
         RETURN 
         count{(s:Symptom)} as symptoms,
@@ -236,15 +322,15 @@ def print_graph_stats(tx):
     """)
     
     stats = result.single()
-    print("\n📈 STATISTIQUES DU GRAPHE DENSE CRÉÉ :")
-    print(f"   • Symptômes : {stats['symptoms']}")
-    print(f"   • Causes : {stats['causes']}")
-    print(f"   • Remèdes : {stats['remedies']}")
-    print(f"   • Relations CAUSES : {stats['causes_relations']}")
-    print(f"   • Relations TREATED_BY : {stats['treated_by_relations']}")
+    print("\nDENSE GRAPH STATISTICS:")
+    print(f"   • Symptoms: {stats['symptoms']}")
+    print(f"   • Causes: {stats['causes']}")
+    print(f"   • Remedies: {stats['remedies']}")
+    print(f"   • CAUSES relations: {stats['causes_relations']}")
+    print(f"   • TREATED_BY relations: {stats['treated_by_relations']}")
     
-    # Statistiques par équipement
-    print("\n🏭 RÉPARTITION PAR ÉQUIPEMENT :")
+    # Equipment distribution statistics
+    print("\nEQUIPMENT DISTRIBUTION:")
     eq_result = tx.run("""
         MATCH (s:Symptom)
         WHERE s.equipment IS NOT NULL
@@ -255,33 +341,39 @@ def print_graph_stats(tx):
     for record in eq_result:
         equipment = record['equipment']
         count = record['symptom_count']
-        print(f"   • {equipment}: {count} symptômes")
+        print(f"   • {equipment}: {count} symptoms")
 
-# === MAIN PIPELINE ===
 def main():
-    """Pipeline principal d'import et enrichissement avec métrique hybride autonome"""
-    print("🚀 DÉMARRAGE DU PIPELINE NEO4J DENSE - MÉTRIQUE HYBRIDE AUTONOME")
+    """
+    Main pipeline for import and enrichment with autonomous hybrid metric
+    
+    Orchestrates the complete Dense Knowledge Graph construction process including
+    data loading, similarity calculation, graph creation, and relationship propagation.
+    Utilizes the autonomous hybrid metric for enhanced semantic understanding without
+    external dependencies.
+    """
+    print("DENSE NEO4J PIPELINE STARTUP - AUTONOMOUS HYBRID METRIC")
     print("=" * 75)
-    print("🆕 NOUVEAU : Métrique hybride intégrée (Cosine + Jaccard + Levenshtein)")
-    print("✅ Aucune dépendance externe - Construction directe cloud possible")
+    print("NEW: Integrated hybrid metric (Cosine + Jaccard + Levenshtein)")
+    print("No external dependencies - Direct cloud construction possible")
     print()
     
     try:
-        # Chargement et nettoyage des données
+        # Data loading and cleaning
         df = load_and_clean_data()
         
-        # Extraction des symptômes uniques pour calcul de similarité
+        # Extract unique symptoms for similarity calculation
         symptoms = df["symptom"].unique().tolist()
-        print(f"🔍 Symptômes uniques identifiés : {len(symptoms)}")
+        print(f"Unique symptoms identified: {len(symptoms)}")
         
-        # Calcul de la matrice de similarité hybride autonome
+        # Calculate autonomous hybrid similarity matrix
         sim_matrix = compute_similarity_hybrid_autonomous(symptoms)
         
         with driver.session() as session:
-            print("\n📌 Étape 1 - Nettoyage de la base Neo4j...")
+            print("\nStep 1 - Neo4j database cleanup...")
             session.write_transaction(clear_database)
             
-            print("📌 Étape 2 - Insertion des triplets avec equipment...")
+            print("Step 2 - Triplet insertion with equipment...")
             for idx, row in df.iterrows():
                 session.write_transaction(insert_triplets, 
                                         row["symptom"], 
@@ -289,12 +381,12 @@ def main():
                                         row["remedy"],
                                         row["equipment"])
                 if (idx + 1) % 1000 == 0:
-                    print(f"   • {idx + 1}/{len(df)} triplets insérés...")
+                    print(f"   • {idx + 1}/{len(df)} triplets inserted...")
             
-            print("📌 Étape 3 - Calcul et ajout des relations SIMILAR_TO...")
+            print("Step 3 - Computing and adding SIMILAR_TO relations...")
             similar_relations_added = 0
             for i, s1 in enumerate(symptoms):
-                # Récupération des TOP_K voisins les plus similaires
+                # Get TOP_K most similar neighbors
                 indices = np.argsort(-sim_matrix[i])[:TOP_K]
                 for j in indices:
                     if sim_matrix[i][j] >= SIM_THRESHOLD:
@@ -305,35 +397,35 @@ def main():
                         similar_relations_added += 1
                         
                 if (i + 1) % 100 == 0:
-                    print(f"   • {i + 1}/{len(symptoms)} symptômes traités...")
+                    print(f"   • {i + 1}/{len(symptoms)} symptoms processed...")
             
-            print(f"   • Relations SIMILAR_TO créées : {similar_relations_added}")
+            print(f"   • SIMILAR_TO relations created: {similar_relations_added}")
             
-            print("📌 Étape 4 - Propagation des liens...")
+            print("Step 4 - Link propagation...")
             session.write_transaction(propagate_links)
             
-            print("📌 Étape 5 - Suppression des relations SIMILAR_TO...")
+            print("Step 5 - SIMILAR_TO relation cleanup...")
             session.write_transaction(clean_similar)
             
-            print("📌 Étape 6 - Génération des statistiques...")
+            print("Step 6 - Statistics generation...")
             session.read_transaction(print_graph_stats)
         
-        print("\n✅ IMPORT DENSE AVEC MÉTRIQUE HYBRIDE AUTONOME TERMINÉ !")
-        print("🎯 Caractéristiques :")
-        print("   • Métrique hybride: Cosine + Jaccard + Levenshtein")
-        print("   • Aucune dépendance externe (index BM25/FAISS)")
-        print("   • Construction directe cloud possible")
-        print("   • Equipment properties sur chaque nœud")
-        print("   • Propagation sémantique enrichie")
+        print("\nDENSE IMPORT WITH AUTONOMOUS HYBRID METRIC COMPLETED")
+        print("Characteristics:")
+        print("   • Hybrid metric: Cosine + Jaccard + Levenshtein")
+        print("   • No external dependencies (BM25/FAISS indexes)")
+        print("   • Direct cloud construction possible")
+        print("   • Equipment properties on each node")
+        print("   • Enriched semantic propagation")
         print()
-        print("🔗 Connectez-vous à Neo4j Browser pour explorer")
-        print("💡 Test: MATCH (s:Symptom) WHERE s.equipment CONTAINS 'FANUC' RETURN s LIMIT 5")
+        print("Connect to Neo4j Browser to explore")
+        print("Test query: MATCH (s:Symptom) WHERE s.equipment CONTAINS 'FANUC' RETURN s LIMIT 5")
         
     except FileNotFoundError:
-        print(f"❌ ERREUR : Fichier CSV introuvable : {CSV_PATH}")
-        print("   Vérifiez que le fichier existe et que le chemin est correct.")
+        print(f"ERROR: CSV file not found: {CSV_PATH}")
+        print("   Verify that the file exists and the path is correct.")
     except Exception as e:
-        print(f"❌ ERREUR INATTENDUE : {str(e)}")
+        print(f"UNEXPECTED ERROR: {str(e)}")
         import traceback
         traceback.print_exc()
     finally:

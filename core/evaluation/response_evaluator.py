@@ -1,6 +1,20 @@
 """
-Évaluateur de réponses - Version complète avec support 4 réponses
-Path: core/evaluation/response_evaluator.py
+Response Evaluator: Comprehensive RAG Response Assessment System
+
+This module provides advanced evaluation capabilities for comparing multiple RAG responses
+in the diagnosis system. It supports both dual and quad-response evaluation modes, utilizing
+LLM-based judging to assess response quality, accuracy, and comparative effectiveness across
+different knowledge graph integration strategies.
+
+Key components:
+- Dual response evaluation for classic RAG comparison
+- Quad response evaluation for comprehensive RAG strategy assessment
+- External prompt template loading for consistent evaluation criteria
+- JSON response parsing with robust error handling
+- Utility functions for quick evaluation workflows
+
+Dependencies: json, re, pathlib, llm_judge_client
+Usage: Import evaluator classes for automated response quality assessment and comparison
 """
 
 import json
@@ -10,20 +24,34 @@ from .llm_judge_client import LLMJudgeClient
 
 
 class ResponseEvaluator:
-    """Évaluateur pour comparer 2 ou 4 réponses RAG simultanément"""
+    """Response evaluator for comparing 2 or 4 RAG responses simultaneously"""
     
     def __init__(self):
+        """
+        Initialize response evaluator with LLM judge client and prompt template.
+        
+        Sets up the evaluation system with external prompt loading and
+        fallback mechanisms for robust operation.
+        """
         self.judge_client = LLMJudgeClient()
         self.prompt_template = self._load_prompt()
     
     def _load_prompt(self) -> str:
-        """Charge le prompt d'évaluation depuis le fichier externalisé"""
+        """
+        Load evaluation prompt from external template file.
+        
+        Attempts to load the judge evaluation prompt from the externalized
+        prompt file, with fallback to default template for basic functionality.
+        
+        Returns:
+            str: Evaluation prompt template with placeholders for responses
+        """
         try:
             prompt_path = Path("config/prompts/judge_evaluation_prompt.txt")
             with open(prompt_path, 'r', encoding='utf-8') as f:
                 return f.read()
         except FileNotFoundError:
-            # Prompt minimal par défaut pour 2 réponses
+            # Minimal default prompt for 2 responses
             return """Compare these 2 responses and give scores 0-5:
 
 QUERY: {query}
@@ -36,54 +64,68 @@ Return JSON: {{"score_response_1": X.X, "score_response_2": X.X, "comparative_ju
     
     def evaluate_responses(self, query: str, response1: str, response2: str) -> dict:
         """
-        Évalue et compare 2 réponses (fonction originale conservée)
+        Evaluate and compare 2 responses with detailed scoring.
+        
+        Performs comparative evaluation of two RAG responses using LLM-based
+        judging with structured scoring and justification.
         
         Args:
-            query: Question utilisateur
-            response1: Première réponse (RAG classique)
-            response2: Deuxième réponse (RAG enrichi)
+            query (str): User question or prompt
+            response1 (str): First response (typically classic RAG)
+            response2 (str): Second response (typically enhanced RAG)
             
         Returns:
-            dict: {"score_response_1": float, "score_response_2": float, "comparative_justification": str}
+            dict: Evaluation results with scores and comparative justification
+                - score_response_1 (float): Score for first response (0-5)
+                - score_response_2 (float): Score for second response (0-5) 
+                - comparative_justification (str): Detailed comparison explanation
         """
-        # Construction du prompt pour 2 réponses
+        # Build prompt for 2 responses
         prompt = self.prompt_template.format(
             query=query,
             response1=response1,
             response2=response2
         )
         
-        # Appel LLM
+        # LLM call
         llm_response = self.judge_client.evaluate(prompt)
         
         # Parse JSON
         try:
             return self._parse_evaluation(llm_response)
         except:
-            # Fallback en cas d'erreur
+            # Fallback on error
             return {
                 "score_response_1": 2.5,
                 "score_response_2": 2.5,
-                "comparative_justification": "Erreur de parsing de l'évaluation"
+                "comparative_justification": "Evaluation parsing error"
             }
     
     def evaluate_4_responses(self, query: str, response_classic: str, response_dense: str, 
                             response_sparse: str, response_dense_sc: str) -> dict:
         """
-        🆕 NOUVELLE FONCTION: Évalue et compare 4 réponses RAG simultanément
-        Utilise le prompt externalisé judge_evaluation_prompt.txt
+        Evaluate and compare 4 RAG responses simultaneously across different strategies.
+        
+        Performs comprehensive evaluation of four different RAG approaches using
+        externalized prompt templates for consistent assessment criteria.
         
         Args:
-            query: Question utilisateur
-            response_classic: Réponse RAG Classique
-            response_dense: Réponse RAG + KG Dense
-            response_sparse: Réponse RAG + KG Sparse
-            response_dense_sc: Réponse RAG + KG Dense S&C
+            query (str): User question or prompt
+            response_classic (str): Classic RAG response
+            response_dense (str): Dense knowledge graph enhanced RAG response
+            response_sparse (str): Sparse knowledge graph enhanced RAG response
+            response_dense_sc (str): Dense symptom-cause knowledge graph enhanced response
             
         Returns:
-            dict: Scores et analyse comparative des 4 approches
+            dict: Comprehensive evaluation results with individual scores and analysis
+                - score_classic (float): Classic RAG score
+                - score_dense (float): Dense KG RAG score
+                - score_sparse (float): Sparse KG RAG score
+                - score_dense_sc (float): Dense S&C KG RAG score
+                - best_approach (str): Identification of best performing approach
+                - comparative_analysis (str): Detailed comparative analysis
         """
-        # Construction du prompt 4 réponses avec le template externalisé
+        # Build prompt for 4 responses using externalized template
         prompt = self.prompt_template.format(
             query=query,
             response_classic=response_classic,
@@ -92,65 +134,114 @@ Return JSON: {{"score_response_1": X.X, "score_response_2": X.X, "comparative_ju
             response_dense_sc=response_dense_sc
         )
         
-        # Appel LLM
+        # LLM call
         llm_response = self.judge_client.evaluate(prompt)
         
         # Parse JSON
         try:
             return self._parse_evaluation(llm_response)
         except Exception as e:
-            print(f"❌ Erreur parsing évaluation 4 réponses: {e}")
-            # Fallback en cas d'erreur
+            print(f"Error parsing 4-response evaluation: {e}")
+            # Fallback on error
             return {
                 "score_classic": 2.5,
                 "score_dense": 2.5,
                 "score_sparse": 2.5,
                 "score_dense_sc": 2.5,
-                "best_approach": "Évaluation indisponible (erreur de parsing)",
-                "comparative_analysis": "Erreur lors de l'évaluation automatique des réponses"
+                "best_approach": "Evaluation unavailable (parsing error)",
+                "comparative_analysis": "Error during automatic response evaluation"
             }
     
     def _parse_evaluation(self, llm_response: str) -> dict:
-        """Parse la réponse JSON du LLM (compatible 2 et 4 réponses)"""
-        # Extraction du JSON (même logique que preprocessing)
+        """
+        Parse LLM JSON response with support for both 2 and 4 response formats.
+        
+        Extracts and validates JSON evaluation results from LLM responses using
+        multiple parsing strategies for robust operation.
+        
+        Args:
+            llm_response (str): Raw LLM response containing JSON evaluation
+            
+        Returns:
+            dict: Parsed evaluation dictionary with scores and analysis
+            
+        Raises:
+            Exception: If no valid JSON can be extracted from the response
+        """
+        # JSON extraction (same logic as preprocessing)
         json_pattern = r'```json\s*(\{.*?\})\s*```'
         json_match = re.search(json_pattern, llm_response, re.DOTALL | re.IGNORECASE)
         
         if json_match:
             json_str = json_match.group(1)
         else:
-            # Fallback: chercher JSON direct
+            # Fallback: search for direct JSON
             json_pattern = r'(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})'
             json_match = re.search(json_pattern, llm_response, re.DOTALL)
             if json_match:
                 json_str = json_match.group(1)
             else:
-                raise Exception("Pas de JSON trouvé dans la réponse LLM")
+                raise Exception("No JSON found in LLM response")
         
         return json.loads(json_str)
 
 
 def create_response_evaluator() -> ResponseEvaluator:
-    """Fonction utilitaire pour créer un évaluateur"""
+    """
+    Utility function to create a response evaluator instance.
+    
+    Factory function for convenient evaluator instantiation with proper
+    initialization of all required components.
+    
+    Returns:
+        ResponseEvaluator: Fully initialized response evaluator instance
+    """
     return ResponseEvaluator()
 
 
-# === FONCTION UTILITAIRE POUR TEST RAPIDE ===
 def evaluate_responses_quick(query: str, response1: str, response2: str) -> dict:
-    """Fonction utilitaire pour évaluation rapide de 2 réponses"""
+    """
+    Utility function for quick evaluation of 2 responses.
+    
+    Provides streamlined interface for dual response evaluation without
+    requiring manual evaluator instantiation.
+    
+    Args:
+        query (str): User question or prompt
+        response1 (str): First response to evaluate
+        response2 (str): Second response to evaluate
+        
+    Returns:
+        dict: Evaluation results with scores and justification
+    """
     evaluator = create_response_evaluator()
     return evaluator.evaluate_responses(query, response1, response2)
 
 
 def evaluate_4_responses_quick(query: str, response_classic: str, response_dense: str, 
                               response_sparse: str, response_dense_sc: str) -> dict:
-    """Fonction utilitaire pour évaluation rapide de 4 réponses"""
+    """
+    Utility function for quick evaluation of 4 responses.
+    
+    Provides streamlined interface for comprehensive quad response evaluation
+    without requiring manual evaluator instantiation.
+    
+    Args:
+        query (str): User question or prompt
+        response_classic (str): Classic RAG response
+        response_dense (str): Dense KG enhanced response
+        response_sparse (str): Sparse KG enhanced response
+        response_dense_sc (str): Dense S&C KG enhanced response
+        
+    Returns:
+        dict: Comprehensive evaluation results with comparative analysis
+    """
     evaluator = create_response_evaluator()
     return evaluator.evaluate_4_responses(query, response_classic, response_dense, response_sparse, response_dense_sc)
 
 
 if __name__ == "__main__":
-    # Test simple de l'évaluateur 4 réponses
+    # Simple test of 4-response evaluator
     test_query = "ACAL-006 error on FANUC R-30iB teach pendant"
     
     test_responses = {
@@ -170,13 +261,13 @@ if __name__ == "__main__":
             test_responses["dense_sc"]
         )
         
-        print("🧪 Test évaluation 4 réponses:")
+        print("4-response evaluation test:")
         print(f"   Classic: {result.get('score_classic', 'N/A')}")
         print(f"   Dense: {result.get('score_dense', 'N/A')}")
         print(f"   Sparse: {result.get('score_sparse', 'N/A')}")
         print(f"   Dense S&C: {result.get('score_dense_sc', 'N/A')}")
-        print(f"   Meilleure approche: {result.get('best_approach', 'N/A')}")
-        print("✅ Test réussi")
+        print(f"   Best approach: {result.get('best_approach', 'N/A')}")
+        print("Test successful")
         
     except Exception as e:
-        print(f"❌ Test échoué: {e}")
+        print(f"Test failed: {e}")

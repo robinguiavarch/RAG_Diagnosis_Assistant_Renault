@@ -1,7 +1,20 @@
 """
-Client LLM simple pour le préprocessing des requêtes
-Focus OpenAI uniquement - simplicité maximale
-🔧 CORRECTION: Chargement settings.yaml AVANT initialisation par défaut
+LLM Client: OpenAI Integration for Query Preprocessing
+
+This module provides a simplified OpenAI client interface for query preprocessing
+in the RAG diagnosis system. It prioritizes configuration loading from settings.yaml
+with comprehensive fallback mechanisms and parameter override capabilities for
+flexible LLM integration with optimal default settings.
+
+Key components:
+- Priority-based configuration loading from external YAML settings
+- OpenAI GPT model integration with configurable parameters
+- Robust error handling and fallback configuration mechanisms
+- Parameter override system for runtime customization
+- Comprehensive logging for debugging and monitoring
+
+Dependencies: openai, yaml, dotenv, typing
+Usage: Import LLMClient for OpenAI-based query preprocessing with automatic configuration
 """
 
 import os
@@ -16,11 +29,16 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def _load_llm_config() -> Dict[str, Any]:
     """
-    🆕 Charge la configuration LLM depuis settings.yaml EN PREMIER
-    Retourne les paramètres par défaut si fichier absent
+    Load LLM configuration from settings.yaml with priority handling.
+    
+    Attempts to load LLM configuration from external YAML file first,
+    then falls back to sensible defaults if file is missing or invalid.
+    
+    Returns:
+        Dict[str, Any]: LLM configuration with model, tokens, and temperature settings
     """
     default_config = {
-        "model": "gpt-4o-mini",  # Fallback si settings.yaml absent
+        "model": "gpt-4o-mini",  # Fallback if settings.yaml absent
         "max_tokens": 1000,
         "temperature": 0.1
     }
@@ -31,66 +49,76 @@ def _load_llm_config() -> Dict[str, Any]:
         
         llm_cfg = settings.get("query_processing", {}).get("llm", {})
         
-        # Merge avec défauts (priorité aux settings.yaml)
+        # Merge with defaults (priority to settings.yaml)
         config = {
             "model": llm_cfg.get("model", default_config["model"]),
             "max_tokens": llm_cfg.get("max_tokens", default_config["max_tokens"]),
             "temperature": llm_cfg.get("temperature", default_config["temperature"])
         }
         
-        print(f"🔧 Configuration LLM chargée depuis settings.yaml:")
-        print(f"   📝 Modèle: {config['model']}")
-        print(f"   🎛️ Temperature: {config['temperature']}")
-        print(f"   📊 Max tokens: {config['max_tokens']}")
+        print(f"LLM configuration loaded from settings.yaml:")
+        print(f"   Model: {config['model']}")
+        print(f"   Temperature: {config['temperature']}")
+        print(f"   Max tokens: {config['max_tokens']}")
         
         return config
         
     except FileNotFoundError:
-        print("⚠️ settings.yaml non trouvé, utilisation configuration par défaut")
+        print("Warning: settings.yaml not found, using default configuration")
         return default_config
     except Exception as e:
-        print(f"⚠️ Erreur lecture settings.yaml: {e}, utilisation configuration par défaut")
+        print(f"Warning: Error reading settings.yaml: {e}, using default configuration")
         return default_config
 
 
 class LLMClient:
-    """Client simplifié pour OpenAI avec chargement prioritaire settings.yaml"""
+    """Simplified OpenAI client with priority configuration loading from settings.yaml"""
     
     def __init__(self, model: Optional[str] = None, max_tokens: Optional[int] = None, 
                  temperature: Optional[float] = None):
         """
-        🔧 CORRECTION: Charge settings.yaml AVANT d'appliquer les paramètres
+        Initialize LLM client with priority configuration loading.
+        
+        Loads configuration from settings.yaml first, then applies parameter
+        overrides if provided. Ensures consistent configuration management
+        with flexible runtime customization capabilities.
         
         Args:
-            model: Modèle à utiliser (override settings.yaml si fourni)
-            max_tokens: Tokens max (override settings.yaml si fourni)
-            temperature: Température (override settings.yaml si fourni)
+            model (Optional[str]): Model override (supersedes settings.yaml if provided)
+            max_tokens (Optional[int]): Token limit override (supersedes settings.yaml if provided)
+            temperature (Optional[float]): Temperature override (supersedes settings.yaml if provided)
         """
-        # 🆕 CHARGEMENT PRIORITAIRE depuis settings.yaml
+        # Priority loading from settings.yaml
         config = _load_llm_config()
         
-        # Application des paramètres (priorité: paramètres explicites > settings.yaml > défauts)
+        # Apply parameters (priority: explicit parameters > settings.yaml > defaults)
         self.model = model if model is not None else config["model"]
         self.max_tokens = max_tokens if max_tokens is not None else config["max_tokens"]
         self.temperature = temperature if temperature is not None else config["temperature"]
         
-        print(f"✅ LLMClient initialisé:")
-        print(f"   🤖 Modèle final: {self.model}")
-        print(f"   🌡️ Température finale: {self.temperature}")
-        print(f"   📏 Max tokens final: {self.max_tokens}")
+        print(f"LLMClient initialized:")
+        print(f"   Final model: {self.model}")
+        print(f"   Final temperature: {self.temperature}")
+        print(f"   Final max tokens: {self.max_tokens}")
     
     def generate(self, prompt: str) -> str:
         """
-        Génère une réponse pour le prompt donné
+        Generate response for given prompt using configured LLM.
+        
+        Sends prompt to OpenAI API with configured parameters and returns
+        the generated response with comprehensive error handling.
         
         Args:
-            prompt: Le prompt à envoyer au LLM
+            prompt (str): Input prompt to send to the LLM
             
         Returns:
-            str: Réponse du LLM
+            str: Generated response from the LLM
+            
+        Raises:
+            Exception: If API call fails or response is invalid
         """
         try:
-            print(f"🧠 Appel LLM {self.model} avec {len(prompt)} caractères de prompt")
+            print(f"LLM call to {self.model} with {len(prompt)} character prompt")
             
             response = client.chat.completions.create(
                 model=self.model,
@@ -100,16 +128,24 @@ class LLMClient:
             )
             
             llm_response = response.choices[0].message.content.strip()
-            print(f"✅ Réponse LLM reçue: {len(llm_response)} caractères")
+            print(f"LLM response received: {len(llm_response)} characters")
             
             return llm_response
             
         except Exception as e:
-            print(f"❌ Erreur LLM: {e}")
-            raise Exception(f"Erreur LLM: {e}")
+            print(f"LLM error: {e}")
+            raise Exception(f"LLM error: {e}")
     
     def get_config(self) -> Dict[str, Any]:
-        """Retourne la configuration actuelle"""
+        """
+        Return current client configuration.
+        
+        Provides access to current LLM configuration for debugging,
+        monitoring, and configuration validation purposes.
+        
+        Returns:
+            Dict[str, Any]: Current configuration with model, tokens, and temperature
+        """
         return {
             "model": self.model,
             "max_tokens": self.max_tokens,
@@ -117,26 +153,31 @@ class LLMClient:
         }
 
 
-# Fonction utilitaire pour usage rapide
 def create_llm_client(model: Optional[str] = None) -> LLMClient:
     """
-    Crée un client LLM avec configuration prioritaire settings.yaml
+    Create LLM client with priority configuration from settings.yaml.
+    
+    Factory function for convenient LLM client creation with automatic
+    configuration loading and optional model override.
     
     Args:
-        model: Override le modèle depuis settings.yaml si fourni
+        model (Optional[str]): Override model from settings.yaml if provided
+        
+    Returns:
+        LLMClient: Configured LLM client instance
     """
     return LLMClient(model=model)
 
 
 if __name__ == "__main__":
-    # Test simple avec affichage de la config
-    print("🧪 Test LLMClient avec settings.yaml")
+    # Simple test with configuration display
+    print("LLMClient test with settings.yaml")
     
     client = create_llm_client()
     
     test_prompt = "Explain what ACAL-006 error means in one sentence."
     try:
         response = client.generate(test_prompt)
-        print(f"✅ Test réussi: {response}")
+        print(f"Test successful: {response}")
     except Exception as e:
-        print(f"❌ Test échoué: {e}")
+        print(f"Test failed: {e}")

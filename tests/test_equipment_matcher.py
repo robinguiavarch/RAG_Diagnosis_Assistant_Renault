@@ -1,5 +1,20 @@
 """
-Tests pour Equipment Matching
+Equipment Matching Test Suite
+
+This module provides comprehensive test coverage for the equipment matching functionality
+used in the RAG diagnosis system. The tests validate exact matching, partial matching,
+semantic similarity, and scoring mechanisms for equipment identification and mapping
+between LLM-extracted equipment names and Knowledge Graph equipment entities.
+
+Key components:
+- Exact match validation: Tests precise equipment name matching
+- Partial match testing: Validates substring and fuzzy matching capabilities
+- Semantic match verification: Tests similarity-based equipment identification
+- Scoring system validation: Verifies match confidence scores and ranking
+- Utility function testing: Tests standalone equipment matching functions
+
+Dependencies: sys, os, equipment_matcher module
+Usage: Execute as standalone script or integrate into larger test suite
 Path: tests/test_equipment_matching.py
 """
 
@@ -13,7 +28,12 @@ from core.retrieval_graph.equipment_matcher import (
 )
 
 def test_exact_match():
-    """Test match exact"""
+    """
+    Test exact equipment name matching
+    
+    Validates that the equipment matcher correctly identifies exact matches
+    between LLM-extracted equipment names and Knowledge Graph equipment entries.
+    """
     matcher = create_equipment_matcher()
     
     llm_equipment = "FANUC R-30iB"
@@ -21,10 +41,15 @@ def test_exact_match():
     
     result = matcher.match_equipment(llm_equipment, kg_equipments)
     assert result == "FANUC R-30iB"
-    print("✅ Test exact match")
+    print("Exact match test passed")
 
 def test_partial_match():
-    """Test match partiel"""
+    """
+    Test partial equipment name matching
+    
+    Validates that the equipment matcher can identify equipment through partial
+    name matching when exact matches are not available but substring matches exist.
+    """
     matcher = create_equipment_matcher()
     
     llm_equipment = "FANUC"
@@ -32,10 +57,15 @@ def test_partial_match():
     
     result = matcher.match_equipment(llm_equipment, kg_equipments)
     assert result == "FANUC R-30iB Controller"
-    print("✅ Test partial match")
+    print("Partial match test passed")
 
 def test_no_match():
-    """Test pas de match"""
+    """
+    Test handling of unmatched equipment names
+    
+    Validates that the equipment matcher correctly returns None when no suitable
+    match can be found for an equipment name in the Knowledge Graph equipment list.
+    """
     matcher = create_equipment_matcher()
     
     llm_equipment = "Unknown Robot"
@@ -43,23 +73,35 @@ def test_no_match():
     
     result = matcher.match_equipment(llm_equipment, kg_equipments)
     assert result is None
-    print("✅ Test no match")
+    print("No match test passed")
 
 def test_semantic_match():
-    """Test match sémantique"""
+    """
+    Test semantic equipment name matching
+    
+    Validates that the equipment matcher can identify equipment through semantic
+    similarity when exact or partial matches are insufficient but contextual
+    similarity exists between equipment descriptions.
+    """
     matcher = create_equipment_matcher()
     
     llm_equipment = "FANUC robot"
     kg_equipments = ["FANUC R-30iB Robot Controller", "ABB IRC5", "KUKA KR C4"]
     
     result = matcher.match_equipment(llm_equipment, kg_equipments)
-    # Devrait matcher FANUC même si pas exact
+    # Should match FANUC even if not exact
     assert result is not None
     assert "FANUC" in result
-    print("✅ Test semantic match")
+    print("Semantic match test passed")
 
 def test_top_matches():
-    """Test top matches avec scores"""
+    """
+    Test top matches retrieval with confidence scores
+    
+    Validates that the equipment matcher can return multiple candidate matches
+    with associated confidence scores, enabling evaluation of match quality
+    and selection of best alternatives when multiple options exist.
+    """
     matcher = create_equipment_matcher()
     
     llm_equipment = "FANUC"
@@ -68,20 +110,35 @@ def test_top_matches():
     matches = matcher.get_best_matches(llm_equipment, kg_equipments, top_k=2)
     
     assert len(matches) >= 1
-    assert matches[0][1] > 0.8  # Score élevé pour FANUC
-    print(f"✅ Test top matches: {matches}")
+    assert matches[0][1] > 0.8  # High score for FANUC
+    print(f"Top matches test passed: {matches}")
 
 def test_utility_function():
-    """Test fonction utilitaire"""
+    """
+    Test standalone utility function for equipment matching
+    
+    Validates that the utility function provides correct equipment matching
+    functionality without requiring explicit matcher instantiation, enabling
+    simple one-off equipment matching operations.
+    """
     kg_equipments = ["FANUC R-30iB", "ABB IRC5", "KUKA KR C4"]
     
     result = match_single_equipment("FANUC R-30iB", kg_equipments)
     assert result == "FANUC R-30iB"
-    print("✅ Test utility function")
+    print("Utility function test passed")
 
 def run_all_tests():
-    """Lance tous les tests"""
-    print("🧪 Tests Equipment Matching")
+    """
+    Execute complete equipment matching test suite
+    
+    Orchestrates execution of all equipment matching tests, providing comprehensive
+    validation of the equipment matching system functionality. Reports test results
+    and handles any test failures with appropriate error reporting.
+    
+    Raises:
+        Exception: When any test fails, with details about the specific failure
+    """
+    print("Equipment Matching Test Suite")
     print("-" * 40)
     
     try:
@@ -93,10 +150,10 @@ def run_all_tests():
         test_utility_function()
         
         print("-" * 40)
-        print("✅ Tous les tests passés !")
+        print("All tests passed successfully")
         
     except Exception as e:
-        print(f"❌ Test échoué: {e}")
+        print(f"Test failed: {e}")
         raise
 
 if __name__ == "__main__":

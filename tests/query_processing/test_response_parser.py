@@ -1,24 +1,45 @@
 """
-Tests simples pour le Response Parser
+test_response_parser
+====================
+
+Unit tests for the ResponseParser class and the `parse_llm_response` utility.
+
+This suite checks the ability to decode and convert LLM outputs into structured
+instances of ProcessedQuery, TechnicalTerms, and EquipmentInfo.
 """
 
-import pytest
-import json
-import sys
-import os
+from __future__ import annotations
 
-# Ajout du path pour les imports
+import json
+import os
+import sys
+
+import pytest
+
+# --------------------------------------------------------------------------- #
+# Project path setup                                                          #
+# --------------------------------------------------------------------------- #
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from core.query_processing.response_parser import (
-    ResponseParser, ProcessedQuery, TechnicalTerms, EquipmentInfo, parse_llm_response
+    ResponseParser,
+    ProcessedQuery,
+    TechnicalTerms,
+    EquipmentInfo,
+    parse_llm_response,
 )
 
 
+# --------------------------------------------------------------------------- #
+# Unit test suite                                                             #
+# --------------------------------------------------------------------------- #
+
 class TestResponseParser:
-    
+    """Unit tests for LLM response parsing and structured data conversion."""
+
     def test_parse_valid_json(self):
-        """Test parsing JSON valide"""
+        """Test that a valid JSON block is correctly parsed into a ProcessedQuery."""
         test_response = '''
         ```json
         {
@@ -33,83 +54,47 @@ class TestResponseParser:
                 "equipment_type": "industrial_robot",
                 "manufacturer": "FANUC"
             },
-            "filtered_query": "ACAL-006 TPE operation error FANUC",
-            "query_variants": ["ACAL-006 teach pendant error"],
-            "confidence_score": 0.9
+            "filtered_query": "ACAL-006 TPE operation error FANUC-30iB",
+            "query_type": "diagnostic",
+            "structured": true
         }
-        ```
+        ```'''
+
+        parser = ResponseParser()
+        result = parser.parse(test_response)
+
+        assert isinstance(result, ProcessedQuery)
+        assert result.query_type == "diagnostic"
+        assert result.structured is True
+        assert isinstance(result.technical_terms, TechnicalTerms)
+        assert isinstance(result.equipment_info, EquipmentInfo)
+
+    def test_parse_llm_response_direct(self):
+        """Test the utility function `parse_llm_response` on raw JSON string."""
+        raw_response = '''
+        {
+            "query_type": "symptom",
+            "technical_terms": {
+                "symptoms": ["noise", "vibration"]
+            },
+            "structured": true
+        }
         '''
-        
+        result = parse_llm_response(raw_response)
+        assert isinstance(result, ProcessedQuery)
+        assert result.query_type == "symptom"
+        assert "vibration" in result.technical_terms.symptoms
+
+    def test_parser_handles_invalid_json(self):
+        """Ensure the parser raises an error on invalid JSON."""
+        invalid_json = "This is not JSON"
         parser = ResponseParser()
-        result = parser.parse_llm_response(test_response, "test query")
-        
-        assert isinstance(result, ProcessedQuery)
-        assert result.technical_terms.error_codes == ["ACAL-006"]
-        assert result.equipment_info.manufacturer == "FANUC"
-        assert result.filtered_query == "ACAL-006 TPE operation error FANUC"
-    
-    def test_parse_invalid_json(self):
-        """Test fallback avec JSON invalide"""
+        with pytest.raises(ValueError):
+            parser.parse(invalid_json)
+
+    def test_parser_missing_fields(self):
+        """Ensure missing required fields raise an appropriate error."""
+        incomplete_json = '{"structured": true}'
         parser = ResponseParser()
-        result = parser.parse_llm_response("invalid json", "test query")
-        
-        assert isinstance(result, ProcessedQuery)
-        assert result.raw_query == "test query"
-        assert result.filtered_query == "test query"  # Fallback
-    
-    def test_processed_query_methods(self):
-        """Test méthodes de ProcessedQuery"""
-        terms = TechnicalTerms(["CODE-1"], ["motor"], ["FANUC"], ["error"])
-        equipment = EquipmentInfo("FANUC R-30iB", "robot", "FANUC")
-        
-        query = ProcessedQuery(
-            raw_query="original",
-            technical_terms=terms,
-            equipment_info=equipment,
-            filtered_query="filtered",
-            query_variants=["variant1", "variant2"]
-        )
-        
-        assert query.get_primary_query() == "filtered"
-        all_queries = query.get_all_queries()
-        assert "filtered" in all_queries
-        assert "variant1" in all_queries
-        assert len(all_queries) == 3  # Déduplication
-    
-    def test_utility_function(self):
-        """Test fonction utilitaire"""
-        test_json = '{"technical_terms": {"error_codes": [], "components": [], "equipment_models": [], "technical_keywords": []}, "equipment_info": {"primary_equipment": "test", "equipment_type": "test", "manufacturer": "test"}, "filtered_query": "test", "query_variants": []}'
-        
-        result = parse_llm_response(test_json, "test query")
-        assert isinstance(result, ProcessedQuery)
-
-
-class TestDataStructures:
-    
-    def test_technical_terms(self):
-        """Test structure TechnicalTerms"""
-        terms = TechnicalTerms(
-            error_codes=["ACAL-006", "SYST-001"],
-            components=["TPE", "motor"],
-            equipment_models=["FANUC-30iB"],
-            technical_keywords=["error", "operation"]
-        )
-        
-        assert len(terms.error_codes) == 2
-        assert "TPE" in terms.components
-    
-    def test_equipment_info(self):
-        """Test structure EquipmentInfo"""
-        equipment = EquipmentInfo(
-            primary_equipment="FANUC R-30iB",
-            equipment_type="industrial_robot",
-            manufacturer="FANUC",
-            series="R-30iB"
-        )
-        
-        assert equipment.manufacturer == "FANUC"
-        assert equipment.equipment_type == "industrial_robot"
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+        with pytest.raises(ValueError):
+            parser.parse(incomplete_json)

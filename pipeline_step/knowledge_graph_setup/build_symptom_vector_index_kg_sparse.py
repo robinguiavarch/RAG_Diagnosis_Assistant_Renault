@@ -1,15 +1,21 @@
 """
-Construction index FAISS pour Knowledge Graph SPARSE avec connexion Cloud/Local
-Index basé sur les symptômes du KG Sparse (avec doublons)
-Pour lancer:
-docker run --rm \
-  -v $(pwd)/.env:/app/.env \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/pipeline_step:/app/pipeline_step \
-  --network host \
-  diagnosis-app \
-  poetry run python pipeline_step/knowledge_graph_setup/build_symptom_vector_index_kg_sparse.py
+FAISS Vector Index Construction for Sparse Knowledge Graph
+
+This module constructs a FAISS semantic search index specifically for the Sparse Knowledge Graph
+configuration. The index is built using individual symptom texts while preserving the 1:1:1
+structure and intentional duplicates, providing semantic search capabilities for the hybrid
+metric system in sparse configurations.
+
+Key components:
+- Sparse symptom extraction: Retrieval of all symptoms including duplicates from Neo4j
+- FAISS index construction: High-performance semantic indexing with normalized embeddings
+- Cloud/local connection management: Intelligent fallback system for database connectivity
+- Metadata preservation: Comprehensive storage of triplet IDs and equipment information
+
+Dependencies: neo4j, faiss-cpu, sentence-transformers, numpy, pickle, pyyaml, python-dotenv
+Usage: docker run --rm -v $(pwd)/.env:/app/.env -v $(pwd)/data:/app/data 
+       -v $(pwd)/config:/app/config -v $(pwd)/pipeline_step:/app/pipeline_step 
+       --network host diagnosis-app poetry run python pipeline_step/knowledge_graph_setup/build_symptom_vector_index_kg_sparse.py
 """
 
 import os
@@ -24,7 +30,12 @@ import yaml
 load_dotenv()
 
 def load_settings():
-    """Charge la configuration depuis settings.yaml"""
+    """
+    Load system configuration from settings.yaml file
+    
+    Returns:
+        dict: Loaded configuration settings
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(script_dir, "..", "..", "config", "settings.yaml")
     with open(config_path, 'r', encoding='utf-8') as file:
@@ -32,16 +43,24 @@ def load_settings():
 
 def get_neo4j_connection(kg_type="sparse"):
     """
-    🌐 Connexion intelligente Cloud/Local
-    kg_type: "dense", "sparse", ou "dense_sc"
+    Establish intelligent Cloud/Local Neo4j connection
+    
+    Implements cloud-first connection strategy with automatic local fallback.
+    Supports multiple Knowledge Graph types with appropriate credential selection.
+    
+    Args:
+        kg_type (str): Knowledge Graph type ("dense", "sparse", or "dense_sc")
+        
+    Returns:
+        neo4j.Driver: Configured Neo4j database driver
     """
     load_dotenv()
     
-    # Priorité au Cloud si activé
+    # Priority to Cloud if enabled
     cloud_enabled = os.getenv("NEO4J_CLOUD_ENABLED", "false").lower() == "true"
     
     if cloud_enabled:
-        print(f"🌐 MODE CLOUD pour {kg_type.upper()}")
+        print(f"CLOUD MODE for {kg_type.upper()}")
         
         if kg_type == "dense":
             uri = os.getenv("NEO4J_DENSE_CLOUD_URI")
@@ -54,14 +73,14 @@ def get_neo4j_connection(kg_type="sparse"):
             password = os.getenv("NEO4J_DENSE_SC_CLOUD_PASS")
         
         if uri and password:
-            print(f"🔌 Connexion Cloud {kg_type}: {uri}")
+            print(f"Cloud connection {kg_type}: {uri}")
             return GraphDatabase.driver(uri, auth=("neo4j", password))
         else:
-            print(f"❌ Credentials cloud manquants pour {kg_type}")
+            print(f"Missing cloud credentials for {kg_type}")
             cloud_enabled = False
     
-    # Fallback Local
-    print(f"🏠 MODE LOCAL pour {kg_type.upper()}")
+    # Local fallback
+    print(f"LOCAL MODE for {kg_type.upper()}")
     
     if kg_type == "dense":
         uri = os.getenv("NEO4J_URI_DENSE", "bolt://host.docker.internal:7687")
@@ -76,40 +95,54 @@ def get_neo4j_connection(kg_type="sparse"):
         user = os.getenv("NEO4J_USER_DENSE_SC", "neo4j")
         password = os.getenv("NEO4J_PASS_DENSE_SC", "password")
     
-    print(f"🔌 Connexion Local {kg_type}: {uri}")
+    print(f"Local connection {kg_type}: {uri}")
     return GraphDatabase.driver(uri, auth=(user, password))
 
 def build_symptom_index_sparse():
     """
-    Construit l'index FAISS pour les symptômes de la Knowledge Base SPARSE
-    Sauvegarde dans data/knowledge_base/symptom_embeddings_sparse/
-    """
-    print("🚀 Construction de l'index FAISS pour les symptômes de la Knowledge Base SPARSE...")
+    Construct FAISS index for Sparse Knowledge Base symptoms
     
-    # === CONFIGURATION ===
+    Creates a high-performance semantic search index using individual symptom texts
+    from the Sparse Knowledge Graph. The index preserves the 1:1:1 structure by
+    maintaining intentional duplicates, ensuring accurate representation of the
+    sparse configuration for hybrid metric calculations.
+    
+    The function performs the following operations:
+    1. Extracts all symptoms including duplicates from Sparse KG
+    2. Generates normalized embeddings using SentenceTransformer
+    3. Constructs FAISS IndexFlatIP for semantic similarity
+    4. Saves index and comprehensive metadata with triplet information
+    
+    Raises:
+        ValueError: When no symptoms are found in the Sparse Knowledge Graph
+        Exception: For database connection or index construction errors
+    """
+    print("Constructing FAISS index for Sparse Knowledge Base symptoms...")
+    
+    # Configuration
     config = load_settings()
     
-    # 🆕 CONNEXION CLOUD/LOCAL INTELLIGENTE
+    # Intelligent Cloud/Local connection
     driver = get_neo4j_connection("sparse")
     
-    # Modèle d'embedding
+    # Embedding model
     model_name = config["models"]["embedding_model"]
-    print(f"📦 Chargement du modèle : {model_name}")
+    print(f"Loading model: {model_name}")
     
-    # Chemin de sortie pour les embeddings Sparse
+    # Output path for Sparse embeddings
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(script_dir, "..", "..", "data", "knowledge_base", "symptom_embeddings_sparse")
 
     try:
-        # Test de connexion
+        # Connection test
         with driver.session() as test_session:
             test_session.run("RETURN 1")
-        print("✅ Connexion Neo4j Sparse réussie")
+        print("Neo4j Sparse connection successful")
         
-        # === EXTRACTION DES SYMPTÔMES DE LA KNOWLEDGE BASE SPARSE ===
-        print("📊 Extraction des symptômes de la Knowledge Base Sparse...")
+        # Sparse Knowledge Base symptom extraction
+        print("Extracting symptoms from Sparse Knowledge Base...")
         with driver.session() as session:
-            # Récupération de tous les symptômes (avec doublons pour Sparse)
+            # Retrieve all symptoms (with duplicates for Sparse)
             result = session.run("""
                 MATCH (s:Symptom) 
                 RETURN s.name AS name, s.equipment AS equipment, s.triplet_id AS triplet_id
@@ -124,16 +157,16 @@ def build_symptom_index_sparse():
                     'triplet_id': record["triplet_id"]
                 })
         
-        print(f"✅ {len(symptoms_data)} symptômes extraits de la Knowledge Base Sparse")
+        print(f"Extracted {len(symptoms_data)} symptoms from Sparse Knowledge Base")
         
         if not symptoms_data:
-            raise ValueError("❌ Aucun symptôme trouvé dans la Knowledge Base Sparse!")
+            raise ValueError("No symptoms found in Sparse Knowledge Base")
         
-        # Extraction des noms pour embedding
+        # Name extraction for embedding
         symptom_names = [s['name'] for s in symptoms_data]
         
-        # === GÉNÉRATION DES EMBEDDINGS ===
-        print("🧠 Génération des embeddings avec SentenceTransformer...")
+        # Embedding generation
+        print("Generating embeddings with SentenceTransformer...")
         model = SentenceTransformer(model_name)
         embeddings = model.encode(
             symptom_names, 
@@ -142,30 +175,30 @@ def build_symptom_index_sparse():
             convert_to_numpy=True
         )
         
-        print(f"✅ Embeddings générés : {embeddings.shape}")
+        print(f"Embeddings generated: {embeddings.shape}")
         
-        # === CONSTRUCTION DE L'INDEX FAISS ===
-        print("🔧 Construction de l'index FAISS...")
+        # FAISS index construction
+        print("Constructing FAISS index...")
         dim = embeddings.shape[1]
-        index = faiss.IndexFlatIP(dim)  # Inner Product pour embeddings normalisés
+        index = faiss.IndexFlatIP(dim)  # Inner Product for normalized embeddings
         index.add(embeddings.astype('float32'))
         
-        print(f"✅ Index FAISS créé avec {index.ntotal} vecteurs de dimension {dim}")
+        print(f"FAISS index created with {index.ntotal} vectors of dimension {dim}")
         
-        # === SAUVEGARDE ===
-        print(f"💾 Sauvegarde dans : {output_dir}")
+        # Save operations
+        print(f"Saving to: {output_dir}")
         os.makedirs(output_dir, exist_ok=True)
         
-        # Sauvegarde de l'index FAISS
+        # FAISS index save
         index_path = os.path.join(output_dir, "index.faiss")
         faiss.write_index(index, index_path)
-        print(f"✅ Index FAISS sauvegardé : {index_path}")
+        print(f"FAISS index saved: {index_path}")
         
-        # Sauvegarde des métadonnées enrichies pour Sparse
+        # Enhanced metadata save for Sparse
         metadata_path = os.path.join(output_dir, "symptom_embedding_sparse.pkl")
         metadata = {
             'symptom_names': symptom_names,
-            'symptoms_data': symptoms_data,  # 🆕 Données complètes avec equipment et triplet_id
+            'symptoms_data': symptoms_data,  # Complete data with equipment and triplet_id
             'model_name': model_name,
             'embedding_dim': dim,
             'total_symptoms': len(symptom_names),
@@ -175,62 +208,69 @@ def build_symptom_index_sparse():
         
         with open(metadata_path, "wb") as f:
             pickle.dump(metadata, f)
-        print(f"✅ Métadonnées sauvegardées : {metadata_path}")
+        print(f"Metadata saved: {metadata_path}")
         
-        # === STATISTIQUES FINALES ===
+        # Final statistics
         unique_symptoms = len(set(symptom_names))
         unique_equipments = set(s['equipment'] for s in symptoms_data)
         
-        print("\n📈 STATISTIQUES DE L'INDEX SPARSE :")
-        print(f"   • Symptômes indexés (total) : {len(symptom_names)}")
-        print(f"   • Symptômes uniques : {unique_symptoms}")
-        print(f"   • Doublons conservés : {len(symptom_names) - unique_symptoms}")
-        print(f"   • Dimension des embeddings : {dim}")
-        print(f"   • Modèle utilisé : {model_name}")
-        print(f"   • Source : Knowledge Base Sparse")
-        print(f"   • Mode connexion : {metadata['connection_mode'].upper()}")
-        print(f"   • Taille index FAISS : {os.path.getsize(index_path) / 1024 / 1024:.2f} MB")
+        print("\nSPARSE INDEX STATISTICS:")
+        print(f"   Total indexed symptoms: {len(symptom_names)}")
+        print(f"   Unique symptoms: {unique_symptoms}")
+        print(f"   Preserved duplicates: {len(symptom_names) - unique_symptoms}")
+        print(f"   Embedding dimension: {dim}")
+        print(f"   Model used: {model_name}")
+        print(f"   Source: Sparse Knowledge Base")
+        print(f"   Connection mode: {metadata['connection_mode'].upper()}")
+        print(f"   FAISS index size: {os.path.getsize(index_path) / 1024 / 1024:.2f} MB")
         
-        # Equipements uniques
-        print(f"   • Équipements couverts : {len(unique_equipments)}")
+        # Unique equipment types
+        print(f"   Equipment types covered: {len(unique_equipments)}")
         for eq in sorted(unique_equipments):
             count = sum(1 for s in symptoms_data if s['equipment'] == eq)
-            print(f"     - {eq}: {count} symptômes")
+            print(f"     - {eq}: {count} symptoms")
         
-        print(f"\n📁 Fichiers générés :")
+        print(f"\nGenerated files:")
         print(f"     - {index_path}")
         print(f"     - {metadata_path}")
         
-        print("\n🎯 UTILISATION :")
-        print("   Cet index peut maintenant être utilisé pour la recherche vectorielle")
-        print("   des symptômes dans le pipeline RAG avec Knowledge Graph Sparse.")
-        print("   Structure 1:1:1 préservée avec doublons intentionnels.")
+        print("\nUSAGE:")
+        print("   This index can now be used for vector search")
+        print("   of symptoms in the RAG pipeline with Sparse Knowledge Graph.")
+        print("   1:1:1 structure preserved with intentional duplicates.")
         
     except Exception as e:
-        print(f"❌ ERREUR lors de la construction de l'index Sparse : {str(e)}")
+        print(f"Error during Sparse index construction: {str(e)}")
         raise
     finally:
         driver.close()
-        print("🔌 Connexion Neo4j fermée")
+        print("Neo4j connection closed")
 
 def main():
-    """Pipeline principal de construction de l'index FAISS Sparse"""
-    print("🚀 DÉMARRAGE DE LA CONSTRUCTION DE L'INDEX FAISS SPARSE")
+    """
+    Main pipeline for Sparse FAISS index construction
+    
+    Orchestrates the complete process of extracting symptoms from the Sparse
+    Knowledge Graph and constructing the corresponding FAISS semantic search index.
+    Provides comprehensive error handling and detailed progress reporting while
+    preserving the 1:1:1 structure characteristic of sparse configurations.
+    """
+    print("SPARSE FAISS INDEX CONSTRUCTION STARTUP")
     print("=" * 60)
-    print("📝 Objectif : Créer un index vectoriel des symptômes de la KB Sparse")
-    print("🌐 Support : Cloud/Local automatique")
-    print("🎯 Sortie : data/knowledge_base/symptom_embeddings_sparse/")
+    print("Objective: Create vector index for Sparse KB symptoms")
+    print("Support: Automatic Cloud/Local connection")
+    print("Output: data/knowledge_base/symptom_embeddings_sparse/")
     print()
     
     try:
         build_symptom_index_sparse()
-        print("\n✅ CONSTRUCTION DE L'INDEX FAISS SPARSE TERMINÉE AVEC SUCCÈS !")
+        print("\nSPARSE FAISS INDEX CONSTRUCTION COMPLETED SUCCESSFULLY")
         
     except FileNotFoundError as e:
-        print(f"❌ ERREUR : Fichier de configuration manquant : {str(e)}")
-        print("   Vérifiez que config/settings.yaml existe.")
+        print(f"ERROR: Missing configuration file: {str(e)}")
+        print("   Verify that config/settings.yaml exists.")
     except Exception as e:
-        print(f"❌ ERREUR INATTENDUE : {str(e)}")
+        print(f"UNEXPECTED ERROR: {str(e)}")
 
 if __name__ == "__main__":
     main()

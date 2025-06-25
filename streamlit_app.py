@@ -1,23 +1,35 @@
 """
-RAG Comparator 4 Colonnes - Version Hybride Complète avec Multi-Query Fusion
-Conserve TOUTE la logique sophistiquée + Interface 4 colonnes + Multi-Query + Equipment Matching
-🆕 NOUVEAU: Support Multi-Query avec processed_query pour les 3 générateurs KG
-🆕 AJOUT: Affichage du contexte envoyé au LLM + Query utilisée dans les détails techniques
-Path: streamlit_app.py
+RAG Comparator Application: Multi-System RAG Evaluation Platform
+
+This module provides a comprehensive Streamlit web application for comparing four different
+RAG (Retrieval-Augmented Generation) systems. It implements a complete comparison interface
+with multi-query fusion capabilities and is designed for research and development evaluation
+of various RAG approaches including classic RAG and Knowledge Graph enhanced variants.
+
+Key components:
+- Multi-system comparison: Classic RAG, Dense KG, Sparse KG, Dense S&C KG
+- Query processing: LLM-based query optimization and multi-query fusion
+- Equipment matching: Automatic equipment detection and filtering
+- Response evaluation: LLM judge for comparative analysis
+- Hybrid retrieval: BM25 + FAISS with cross-encoder reranking
+- Performance metrics: Execution time tracking and analysis
+
+Dependencies: Streamlit, OpenAI, Neo4j, FAISS, sentence-transformers, PyYAML
+Usage: streamlit run streamlit_app.py
 """
 
-# IMPORTS STANDARDS
+# Standard imports
 import yaml
 import os
 import time
 import math
 from dotenv import load_dotenv
 
-# === CONFIGURATION STREAMLIT EN PREMIER ===
+# Streamlit configuration must be first
 import streamlit as st
 st.set_page_config(page_title="RAG Comparator 4 Columns", layout="wide")
 
-# === IMPORTS DU PROJET APRÈS LA CONFIG STREAMLIT ===
+# Project imports after Streamlit configuration
 from core.retrieval_engine.lexical_search import BM25Retriever
 from core.retrieval_engine.semantic_search import FAISSRetriever
 from core.retrieval_engine.hybrid_fusion import fuse_results
@@ -27,14 +39,14 @@ from core.response_generation.rag_with_kg_dense_generator import OpenAIGenerator
 from core.response_generation.rag_with_kg_sparse_generator import OpenAIGeneratorKGSparse
 from core.response_generation.rag_with_kg_dense_sc_generator import OpenAIGeneratorKGDenseSC
 
-# 🆕 IMPORTS LLM Filtre et Juge
+# LLM filter and judge imports
 from core.query_processing import (
     create_query_processor, 
     create_enhanced_retrieval_engine
 )
 from core.evaluation import create_response_evaluator
 
-# 🆕 IMPORTS DES NOUVELLES FONCTIONS KG AVEC MULTI-QUERY + EQUIPMENT MATCHING
+# Knowledge Graph multi-query and equipment matching imports
 from core.retrieval_graph.dense_kg_querier import (
     get_structured_context, 
     get_structured_context_with_equipment_filter
@@ -48,22 +60,35 @@ from core.retrieval_graph.dense_sc_kg_querier import (
     get_structured_context_dense_sc_with_equipment_filter
 )
 
-# === TITRE ET DESCRIPTION ===
-st.title("🧠 RAG Comparator – 4 Systèmes avec Multi-Query Fusion + Equipment Matching")
+# Application title and description
+st.title("🧠 Outil R&D RAG Comparator")
 st.markdown("**🆕 Version Multi-Query** - Comparez RAG Classique, KG Dense, KG Sparse et KG Dense S&C avec LLM preprocessing intelligent")
 
-# Status cloud
+# Cloud status display
 cloud_enabled = os.getenv("NEO4J_CLOUD_ENABLED", "false").lower() == "true"
 if cloud_enabled:
     st.success("🌐 Mode Cloud Neo4j activé")
 else:
     st.info("🏠 Mode Local Neo4j")
 
-# === Chargement environnement et config ===
+# Load environment and configuration
 load_dotenv()
 
 @st.cache_data
 def load_settings():
+    """
+    Load application settings from YAML configuration file.
+    
+    Reads the main configuration file containing paths, model names, and system
+    parameters required for all RAG components initialization.
+    
+    Returns:
+        dict: Parsed configuration dictionary with all application settings
+        
+    Raises:
+        FileNotFoundError: If the settings.yaml file does not exist
+        yaml.YAMLError: If the YAML file contains syntax errors
+    """
     with open("config/settings.yaml", "r") as f:
         return yaml.safe_load(f)
 
@@ -73,40 +98,52 @@ models = settings["models"]
 rerank_cfg = settings["reranking"]
 gen_cfg = settings["generation"]
 
-# === Chargement des composants ===
 @st.cache_resource
 def load_retrievers():
-    """Charge les retrievers BM25 et FAISS avec les bons chemins"""
+    """
+    Load and initialize BM25 and FAISS retrievers with proper configuration paths.
+    
+    Initializes both lexical (BM25) and semantic (FAISS) retrieval systems using
+    the paths specified in the configuration file. Includes fallback logic for
+    metadata file location and comprehensive error handling.
+    
+    Returns:
+        tuple: (BM25Retriever, FAISSRetriever) initialized retriever instances
+        
+    Raises:
+        FileNotFoundError: If required index files are not found
+        Exception: Various initialization errors with detailed messages
+    """
     try:
-        # 🔧 CORRECTION : Utilisation des bons chemins depuis settings.yaml
+        # Initialize BM25 retriever with configured index directory
         bm25 = BM25Retriever(index_dir=paths["bm25_index"])
         
-        # 🔧 CORRECTION : Chemins FAISS classiques (pour RAG standard)
+        # Initialize FAISS retriever with standard paths
         faiss_index_path = paths["faiss_index"]  # data/indexes/semantic_faiss/index.faiss
         faiss_metadata_path = paths["embedding_file"]  # data/indexes/embeddings/metadata.pkl
         
-        # Si les fichiers n'existent pas, essayer les chemins alternatifs
+        # Fallback logic for metadata file location
         if not os.path.exists(faiss_metadata_path):
-            # Fallback vers le dossier FAISS
+            # Try alternative metadata location in FAISS directory
             alternative_metadata = os.path.join(paths["faiss_index_dir"], "metadata.pkl")
             if os.path.exists(alternative_metadata):
                 faiss_metadata_path = alternative_metadata
-                print(f"🔄 Utilisation du metadata alternatif: {alternative_metadata}")
+                print(f"Using alternative metadata path: {alternative_metadata}")
             else:
-                raise FileNotFoundError(f"❌ Métadonnées FAISS non trouvées. Vérifiez:\n"
+                raise FileNotFoundError(f"FAISS metadata not found. Check:\n"
                                       f"  - {faiss_metadata_path}\n"
                                       f"  - {alternative_metadata}\n"
-                                      f"Exécutez d'abord le script de création des index FAISS.")
+                                      f"Run FAISS index creation script first.")
         
         faiss = FAISSRetriever(
             index_path=faiss_index_path, 
             metadata_path=faiss_metadata_path
         )
         
-        print(f"✅ Retrievers chargés:")
-        print(f"   📄 BM25: {paths['bm25_index']}")
-        print(f"   🧠 FAISS: {faiss_index_path}")
-        print(f"   📊 Metadata: {faiss_metadata_path}")
+        print(f"Retrievers loaded successfully:")
+        print(f"   BM25: {paths['bm25_index']}")
+        print(f"   FAISS: {faiss_index_path}")
+        print(f"   Metadata: {faiss_metadata_path}")
         
         return bm25, faiss
         
@@ -117,7 +154,18 @@ def load_retrievers():
 
 @st.cache_resource
 def load_reranker():
-    """Charge le CrossEncoder local avec paramètres optimisés"""
+    """
+    Load and initialize the CrossEncoder reranker with optimized parameters.
+    
+    Creates a local CrossEncoder instance for document reranking using the
+    configured model with optimized parameters for performance and accuracy.
+    
+    Returns:
+        CrossEncoderReranker: Initialized reranker instance with configured model
+        
+    Raises:
+        Exception: Model loading or initialization errors
+    """
     return CrossEncoderReranker(
         model_name=models.get("reranker_model", "cross-encoder/ms-marco-MiniLM-L-6-v2"),
         max_length=1024
@@ -125,23 +173,39 @@ def load_reranker():
 
 @st.cache_resource
 def load_generators():
-    # 4 générateurs complets
+    """
+    Load and initialize all four RAG response generators.
+    
+    Creates instances of all four RAG generation systems: classic RAG,
+    dense KG, sparse KG, and dense S&C KG generators with consistent
+    configuration parameters.
+    
+    Returns:
+        tuple: Four generator instances (classic, dense_kg, sparse_kg, dense_sc_kg)
+        
+    Raises:
+        Exception: Generator initialization or configuration errors
+    """
+    # Classic RAG generator
     classic_generator = OpenAIGenerator(
         model=models.get("openai_model", "gpt-4o"),
         context_token_limit=6000,
         max_tokens=gen_cfg.get("max_new_tokens", 512),
     )
     
+    # Dense Knowledge Graph generator
     kg_dense_generator = OpenAIGeneratorKG(
         model=models.get("openai_model", "gpt-4o"),
         context_token_limit=6000
     )
     
+    # Sparse Knowledge Graph generator
     kg_sparse_generator = OpenAIGeneratorKGSparse(
         model=models.get("openai_model", "gpt-4o"),
         context_token_limit=6000
     )
     
+    # Dense S&C Knowledge Graph generator
     kg_dense_sc_generator = OpenAIGeneratorKGDenseSC(
         model=models.get("openai_model", "gpt-4o"),
         context_token_limit=6000
@@ -149,10 +213,20 @@ def load_generators():
     
     return classic_generator, kg_dense_generator, kg_sparse_generator, kg_dense_sc_generator
 
-# 🆕 Chargement du système LLM
 @st.cache_resource
 def load_llm_preprocessing():
-    """Charge le système de préprocessing LLM"""
+    """
+    Load and initialize the LLM preprocessing system for query optimization.
+    
+    Creates query processor and enhanced retrieval engine for multi-query fusion
+    and intelligent query preprocessing capabilities.
+    
+    Returns:
+        tuple: (query_processor, enhanced_retrieval) or (None, None) if failed
+        
+    Raises:
+        Exception: LLM preprocessing system initialization errors
+    """
     try:
         query_processor = create_query_processor()
         
@@ -171,30 +245,56 @@ def load_llm_preprocessing():
         st.error(f"❌ Erreur chargement LLM preprocessing: {e}")
         return None, None
 
-# 🆕 Chargement de l'évaluateur 4 réponses
 @st.cache_resource
 def load_response_evaluator():
-    """Charge le système d'évaluation LLM 4 réponses"""
+    """
+    Load and initialize the LLM-based response evaluation system.
+    
+    Creates an evaluator instance for comparative analysis of the four RAG
+    system responses using LLM-based judging capabilities.
+    
+    Returns:
+        ResponseEvaluator or None: Initialized evaluator instance or None if failed
+        
+    Raises:
+        Exception: Evaluator initialization errors
+    """
     try:
         return create_response_evaluator()
     except Exception as e:
         st.error(f"❌ Erreur chargement évaluateur: {e}")
         return None
 
-# Chargement des composants
+# Load all system components
 bm25, faiss = load_retrievers()
 reranker = load_reranker()
 classic_generator, kg_dense_generator, kg_sparse_generator, kg_dense_sc_generator = load_generators()
 
-# 🆕 Chargement du système LLM
+# Load LLM preprocessing system
 query_processor, enhanced_retrieval = load_llm_preprocessing()
 
-# 🆕 Chargement de l'évaluateur 4 réponses
+# Load response evaluation system
 response_evaluator = load_response_evaluator()
 
-# === Fonction de reranking locale avec CrossEncoder (CONSERVÉE) ===
 def rerank_with_cross_encoder(query, docs, top_k=3):
-    """Re-ranking local avec CrossEncoder - Remplace l'API HuggingFace"""
+    """
+    Perform local reranking using CrossEncoder to replace HuggingFace API.
+    
+    Applies cross-encoder reranking to the provided documents using the local
+    CrossEncoder model, providing more accurate relevance scoring than initial
+    retrieval methods.
+    
+    Args:
+        query (str): User query for relevance calculation
+        docs (list): List of document dictionaries to rerank
+        top_k (int): Number of top documents to return after reranking
+    
+    Returns:
+        list: Reranked documents with cross-encoder scores and metadata
+        
+    Raises:
+        Exception: Reranking process errors with fallback to fused scores
+    """
     try:
         reranked_docs = reranker.rerank(
             query=query,
@@ -217,13 +317,26 @@ def rerank_with_cross_encoder(query, docs, top_k=3):
         return formatted_results
         
     except Exception as e:
-        print(f"❌ Erreur lors du reranking CrossEncoder : {e}")
+        print(f"Error during CrossEncoder reranking: {e}")
         fallback_docs = sorted(docs, key=lambda x: x.get("fused_score", 0), reverse=True)[:top_k]
         return [{"text": d["text"], "score": d.get("fused_score", 0.0), "source": d.get("source", "Unknown")} for d in fallback_docs]
 
-# === Fonctions d'évaluation existantes (CONSERVÉES) ===
 def determine_strategy_info(reranked_docs, kg_triplets_text, seuil_pertinence):
-    """Détermine et formate l'information de stratégie pour l'affichage"""
+    """
+    Determine and format strategy information for display purposes.
+    
+    Analyzes the relevance of documents and knowledge graph content to determine
+    the optimal strategy (document-only, KG-only, hybrid, or no context) and
+    formats the information for user interface display.
+    
+    Args:
+        reranked_docs (list): List of reranked document results
+        kg_triplets_text (str): Knowledge graph triplets text content
+        seuil_pertinence (float): Relevance threshold for strategy determination
+    
+    Returns:
+        dict: Strategy information with text, color, and details for display
+    """
     
     kg_has_content = "Triplet" in kg_triplets_text if kg_triplets_text else False
     triplet_count = len([line for line in kg_triplets_text.split('\n') if 'Triplet' in line]) if kg_triplets_text else 0
@@ -269,38 +382,47 @@ def determine_strategy_info(reranked_docs, kg_triplets_text, seuil_pertinence):
             "details": f"Documents + Knowledge Graph"
         }
 
-# 🆕 FONCTIONS RAG 4 SYSTÈMES AVEC MULTI-QUERY FUSION
 def run_rag_system(query, system_type, use_llm_preprocessing):
     """
-    🆕 Exécute un système RAG donné avec Multi-Query Fusion si LLM preprocessing activé
+    Execute a RAG system with multi-query fusion capabilities if LLM preprocessing is enabled.
+    
+    Runs one of the four RAG systems (classic, dense, sparse, dense_sc) with optional
+    LLM preprocessing for query optimization, multi-query fusion, and equipment matching.
+    Handles both classic and enhanced retrieval pipelines.
     
     Args:
-        query: Question utilisateur
-        system_type: Type de système ("classic", "dense", "sparse", "dense_sc")
-        use_llm_preprocessing: Utiliser le LLM preprocessing + Multi-Query
+        query (str): User query to process
+        system_type (str): Type of system ("classic", "dense", "sparse", "dense_sc")
+        use_llm_preprocessing (bool): Whether to use LLM preprocessing and multi-query
+    
+    Returns:
+        dict: Complete system execution results including answer, timing, and metadata
+        
+    Raises:
+        Exception: Various system execution errors with fallback handling
     """
     
-    # 🆕 Variables pour stocker les données LLM
+    # Variables for storing LLM data
     equipment_info = None
-    processed_query = None  # 🆕 AJOUT CRITIQUE
+    processed_query = None
 
-    # 🆕 LLM PREPROCESSING UNIFORME POUR TOUS LES SYSTÈMES
+    # Unified LLM preprocessing for all systems
     if use_llm_preprocessing and query_processor and enhanced_retrieval:
-        # PIPELINE LLM PREPROCESSING + MULTI-QUERY
+        # LLM preprocessing + multi-query pipeline
         try:
-            print(f"🧠 Activation Multi-Query pour système: {system_type}")
+            print(f"Activating Multi-Query for system: {system_type}")
             
-            # 🆕 STOCKAGE DE processed_query
+            # Store processed_query
             processed_query = query_processor.process_user_query(query)
             retrieval_result = enhanced_retrieval.search_with_variants(processed_query)
             reranked = retrieval_result.chunks
             processing_time = retrieval_result.processing_time
             
-            # Stockage des métadonnées complètes
+            # Store complete metadata
             reranked_metadata = [{"content": d["text"], "score": d.get("cross_encoder_score", d.get("fused_score", 0.0)), "source": d["source"]} for d in reranked]
 
             
-            # 🆕 EXTRACTION EQUIPMENT_INFO POUR LES KG
+            # Extract equipment_info for KG systems
             equipment_info = {
                 'primary_equipment': processed_query.equipment_info.primary_equipment,
                 'equipment_type': processed_query.equipment_info.equipment_type,
@@ -308,10 +430,10 @@ def run_rag_system(query, system_type, use_llm_preprocessing):
                 'series': processed_query.equipment_info.series
             }
             
-            print(f"✅ Multi-Query activé: {len(processed_query.query_variants)} variantes")
-            print(f"🏭 Equipment détecté: {equipment_info['primary_equipment']}")
+            print(f"Multi-Query activated: {len(processed_query.query_variants)} variants")
+            print(f"Equipment detected: {equipment_info['primary_equipment']}")
             
-            # Récupération des triplets KG POUR TOUS (même si vide pour classique)
+            # Retrieve KG triplets for all systems (even if empty for classic)
             kg_triplets_detailed = "\n".join([
                 f"Triplet {i}: {t.get('symptom', '')} → {t.get('cause', '')} → {t.get('remedy', '')}"
                 for i, t in enumerate(retrieval_result.triplets, 1)
@@ -319,17 +441,17 @@ def run_rag_system(query, system_type, use_llm_preprocessing):
             
         except Exception as e:
             st.error(f"❌ Erreur LLM preprocessing pour {system_type}: {e}")
-            # Fallback vers pipeline classique
+            # Fallback to classic pipeline
             use_llm_preprocessing = False
             equipment_info = None
-            processed_query = None  # 🆕 RESET
+            processed_query = None
     
     if not use_llm_preprocessing or not query_processor:
-        # PIPELINE CLASSIQUE UNIFORME POUR TOUS LES 4 SYSTÈMES
-        print(f"📄 Mode classique pour système: {system_type}")
+        # Classic unified pipeline for all 4 systems
+        print(f"Classic mode for system: {system_type}")
         start_time = time.time()
         
-        # Recherche BM25 et FAISS (IDENTIQUE pour tous)
+        # BM25 and FAISS search (identical for all systems)
         bm25_raw = bm25.search(query, top_k=3)
         for doc in bm25_raw:
             doc["source"] = "Lexical (BM25)"
@@ -338,7 +460,7 @@ def run_rag_system(query, system_type, use_llm_preprocessing):
         for doc in faiss_raw:
             doc["source"] = "Sémantique (FAISS)"
 
-        # Fusion et reranking local (IDENTIQUE pour tous)
+        # Fusion and local reranking (identical for all systems)
         fused = fuse_results(bm25_raw, faiss_raw, top_k=rerank_cfg.get("top_k_before_rerank", 10))
         reranked = rerank_with_cross_encoder(query, fused, top_k=rerank_cfg.get("final_top_k", 3))
         
@@ -347,29 +469,28 @@ def run_rag_system(query, system_type, use_llm_preprocessing):
 
         kg_triplets_detailed = ""
 
-   # 🔧 DÉFINIR LA QUERY EFFECTIVE UNE SEULE FOIS
+   # Define effective query once
     effective_query = processed_query.filtered_query if (use_llm_preprocessing and processed_query) else query
 
-    # 🆕 STOCKAGE DU CONTEXTE POUR AFFICHAGE DEBUG
+    # Store context for debug display
     document_context = "\n\n".join([d["text"] for d in reranked[:gen_cfg.get("max_context_chunks", 3)]])
     kg_context = ""
 
-    # 🆕 GÉNÉRATION SELON LE SYSTÈME AVEC QUERY FILTRÉE
+    # Generation according to system type with filtered query
     try:
         if system_type == "classic":
-            # RAG Classique: SEULEMENT les documents, pas de KG
+            # Classic RAG: only documents, no KG
             answer = classic_generator.generate_answer(effective_query, [d["text"] for d in reranked])
             kg_context = "[Pas de contexte KG pour RAG Classique]"
             
         elif system_type == "dense":
-            # 🔧 CORRECTION: effective_query au lieu de query
             answer = kg_dense_generator.generate_answer(
                 effective_query, [d["text"] for d in reranked], 
                 reranked_metadata=reranked, 
                 equipment_info=equipment_info,
                 processed_query=processed_query if use_llm_preprocessing else None
             )
-            # Récupération du contexte KG pour affichage
+            # Retrieve KG context for display
             if processed_query and hasattr(processed_query, 'query_variants'):
                 from core.retrieval_graph.dense_kg_querier import get_structured_context_with_multi_query
                 kg_context = get_structured_context_with_multi_query(
@@ -384,14 +505,13 @@ def run_rag_system(query, system_type, use_llm_preprocessing):
                 kg_context = get_structured_context(effective_query, format_type="detailed", max_triplets=3)
             
         elif system_type == "sparse":
-            # 🔧 CORRECTION: effective_query au lieu de query
             answer = kg_sparse_generator.generate_answer(
                 effective_query, [d["text"] for d in reranked], 
                 reranked_metadata=reranked,
                 equipment_info=equipment_info,
                 processed_query=processed_query if use_llm_preprocessing else None
             )
-            # Récupération du contexte KG pour affichage
+            # Retrieve KG context for display
             if processed_query and hasattr(processed_query, 'query_variants'):
                 from core.retrieval_graph.sparse_kg_querier import get_structured_context_sparse_with_multi_query
                 kg_context = get_structured_context_sparse_with_multi_query(
@@ -406,14 +526,13 @@ def run_rag_system(query, system_type, use_llm_preprocessing):
                 kg_context = get_structured_context_sparse(effective_query, format_type="detailed", max_triplets=3)
             
         elif system_type == "dense_sc":
-            # 🔧 CORRECTION: effective_query au lieu de query
             answer = kg_dense_sc_generator.generate_answer(
                 effective_query, [d["text"] for d in reranked], 
                 reranked_metadata=reranked,
                 equipment_info=equipment_info,
                 processed_query=processed_query if use_llm_preprocessing else None
             )
-            # Récupération du contexte KG pour affichage
+            # Retrieve KG context for display
             if processed_query and hasattr(processed_query, 'query_variants'):
                 from core.retrieval_graph.dense_sc_kg_querier import get_structured_context_dense_sc_with_multi_query
                 kg_context = get_structured_context_dense_sc_with_multi_query(
@@ -434,10 +553,10 @@ def run_rag_system(query, system_type, use_llm_preprocessing):
         answer = f"❌ Erreur génération {system_type}: {str(e)}"
         kg_context = f"❌ Erreur récupération contexte KG: {str(e)}"
 
-    # 🆕 RÉCUPÉRATION DES TRIPLETS KG APRÈS GÉNÉRATION POUR AFFICHAGE (si pas déjà fait)
+    # Retrieve KG triplets after generation for display if not already done
     if system_type in ["dense", "sparse", "dense_sc"] and not kg_triplets_detailed:
         try:
-            # Récupération pour affichage avec equipment matching si disponible
+            # Retrieve for display with equipment matching if available
             if system_type == "dense":
                 if equipment_info:
                     kg_triplets_detailed = get_structured_context_with_equipment_filter(
@@ -464,13 +583,13 @@ def run_rag_system(query, system_type, use_llm_preprocessing):
         except Exception:
             kg_triplets_detailed = "Erreur récupération triplets KG"
 
-    # Stratégie pour les systèmes KG
+    # Strategy for KG systems
     if system_type in ["dense", "sparse", "dense_sc"] and kg_triplets_detailed:
         strategy_info = determine_strategy_info(reranked_metadata, kg_triplets_detailed, gen_cfg.get("seuil_pertinence", 0.7))
     else:
         strategy_info = {"strategy": "RAG_CLASSIQUE", "text": "📄 RAG Classique", "color": "blue"}
 
-    # 🆕 AJOUT D'INFOS MULTI-QUERY DANS LA STRATÉGIE
+    # Add multi-query info to strategy
     if processed_query and use_llm_preprocessing:
         strategy_info["text"] += f" [Multi-Query: {len(processed_query.query_variants)} variantes]"
 
@@ -481,18 +600,18 @@ def run_rag_system(query, system_type, use_llm_preprocessing):
         "reranked_docs": reranked_metadata,
         "kg_triplets": kg_triplets_detailed,
         "strategy": strategy_info,
-        "equipment_info": equipment_info,  # 🆕 Ajout pour affichage
-        "processed_query": processed_query,  # 🆕 Ajout pour diagnostics
-        "effective_query": effective_query,  # 🆕 AJOUT: Query utilisée par le générateur
-        "document_context": document_context,  # 🆕 AJOUT: Contexte documentaire envoyé au LLM
-        "kg_context": kg_context  # 🆕 AJOUT: Contexte KG envoyé au LLM
+        "equipment_info": equipment_info,
+        "processed_query": processed_query,
+        "effective_query": effective_query,
+        "document_context": document_context,
+        "kg_context": kg_context
     }
 
-# === Interface utilisateur ===
+# User interface
 query = st.text_area("💬 Votre requête", height=100, 
                     placeholder="Ex: motor overheating FANUC R-30iB error ACAL-006")
 
-# === Options d'affichage ===
+# Display options
 col1, col2 = st.columns(2)
 with col1:
     show_details = st.checkbox("Afficher les détails techniques", value=False)
@@ -502,15 +621,15 @@ with col2:
 
 if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
     
-    # 🆕 EXÉCUTION DES 4 SYSTÈMES AVEC MULTI-QUERY FUSION
+    # Execute all 4 systems with multi-query fusion
     with st.spinner("⚡ Génération des 4 réponses avec Multi-Query Fusion..."):
-        # Exécution séquentielle pour garder la logique sophistiquée
+        # Sequential execution to maintain sophisticated logic
         classic_result = run_rag_system(query, "classic", use_llm_preprocessing)
         dense_result = run_rag_system(query, "dense", use_llm_preprocessing)
         sparse_result = run_rag_system(query, "sparse", use_llm_preprocessing)
         dense_sc_result = run_rag_system(query, "dense_sc", use_llm_preprocessing)
 
-    # 🆕 === AFFICHAGE MULTI-QUERY INFO SI LLM PREPROCESSING ACTIF ===
+    # Display multi-query info if LLM preprocessing active
     if use_llm_preprocessing and dense_result.get("processed_query"):
         processed_query = dense_result["processed_query"]
         st.markdown("---")
@@ -525,7 +644,7 @@ if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
             if processed_query.query_variants:
                 st.info(f"**Première variante:** {processed_query.query_variants[0][:50]}...")
         
-        # Affichage des variantes complètes
+        # Display complete variants
         if show_details:
             with st.expander("🔍 Détails Multi-Query"):
                 st.write("**Query originale:**", query)
@@ -534,7 +653,7 @@ if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
                 for i, variant in enumerate(processed_query.query_variants, 1):
                     st.write(f"  {i}. {variant}")
 
-    # 🆕 === AFFICHAGE EQUIPMENT INFO SI LLM PREPROCESSING ACTIF ===
+    # Display equipment info if LLM preprocessing active
     if use_llm_preprocessing and dense_result.get("equipment_info"):
         equipment_info = dense_result["equipment_info"]
         st.markdown("### 🏭 Equipment Detection (Multi-Query)")
@@ -548,7 +667,7 @@ if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
         with col_eq4:
             st.info(f"**Series:** {equipment_info.get('series', 'Unknown')}")
 
-    # 🆕 === AFFICHAGE 4 COLONNES ===
+    # Four-column display
     st.markdown("---")
     mode_title = "Multi-Query Fusion" if use_llm_preprocessing else "Mode Classique"
     st.markdown(f"## 📊 Comparaison des 4 systèmes - {mode_title}")
@@ -561,7 +680,7 @@ if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
         st.success(classic_result["answer"])
         st.caption(f"⏱️ {classic_result['time']:.2f}s | 📄 {classic_result['docs_count']} docs")
         
-        # Stratégie
+        # Strategy display
         strategy = classic_result["strategy"]
         st.markdown(f"<p style='color: {strategy['color']}; font-size: 0.8em;'>{strategy['text']}</p>", 
                    unsafe_allow_html=True)
@@ -573,7 +692,7 @@ if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
         st.success(dense_result["answer"])
         st.caption(f"⏱️ {dense_result['time']:.2f}s | 📄 {dense_result['docs_count']} docs")
         
-        # Stratégie
+        # Strategy display
         strategy = dense_result["strategy"]
         st.markdown(f"<p style='color: {strategy['color']}; font-size: 0.8em;'>{strategy['text']}</p>", 
                    unsafe_allow_html=True)
@@ -585,7 +704,7 @@ if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
         st.success(sparse_result["answer"])
         st.caption(f"⏱️ {sparse_result['time']:.2f}s | 📄 {sparse_result['docs_count']} docs")
         
-        # Stratégie
+        # Strategy display
         strategy = sparse_result["strategy"]
         st.markdown(f"<p style='color: {strategy['color']}; font-size: 0.8em;'>{strategy['text']}</p>", 
                    unsafe_allow_html=True)
@@ -597,12 +716,12 @@ if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
         st.success(dense_sc_result["answer"])
         st.caption(f"⏱️ {dense_sc_result['time']:.2f}s | 📄 {dense_sc_result['docs_count']} docs")
         
-        # Stratégie
+        # Strategy display
         strategy = dense_sc_result["strategy"]
         st.markdown(f"<p style='color: {strategy['color']}; font-size: 0.8em;'>{strategy['text']}</p>", 
                    unsafe_allow_html=True)
 
-    # 🆕 === ÉVALUATION LLM JUGE 4 RÉPONSES ===
+    # LLM judge evaluation for 4 responses
     if response_evaluator:
         st.markdown("---")
         st.markdown("## 🤖 Analyse LLM Juge - 4 Systèmes")
@@ -617,7 +736,7 @@ if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
                     dense_sc_result["answer"]
                 )
                 
-                # Affichage des scores
+                # Score display
                 col_eval1, col_eval2, col_eval3, col_eval4 = st.columns(4)
                 
                 with col_eval1:
@@ -636,7 +755,7 @@ if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
                     score = eval_result.get("score_dense_sc", 0)
                     st.metric("🔶 Score Dense S&C", f"{score:.1f}/5")
                 
-                # Analyse comparative
+                # Comparative analysis
                 if "comparative_analysis" in eval_result:
                     st.info(f"**Analyse :** {eval_result['comparative_analysis']}")
                 
@@ -646,40 +765,45 @@ if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
             except Exception as e:
                 st.warning(f"⚠️ Évaluation indisponible: {e}")
 
-    # === MÉTRIQUES DE PERFORMANCE ===
+    # Execution time metrics
     st.markdown("---")
-    st.markdown("## ⏱️ Métriques de performance")
+    st.markdown("## ⏱️ Temps d'exécution")
     
-    col3, col4, col5, col6 = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4)
     
-    all_times = [classic_result["time"], dense_result["time"], sparse_result["time"], dense_sc_result["time"]]
+    with col1:
+        st.metric("📘 RAG Classique", f"{classic_result['time']:.2f}s")
+    
+    with col2:
+        st.metric("🧠 RAG KG Dense", f"{dense_result['time']:.2f}s")
     
     with col3:
-        st.metric("🏃 Plus Rapide", f"{min(all_times):.2f}s")
+        st.metric("🟤 RAG KG Sparse", f"{sparse_result['time']:.2f}s")
     
     with col4:
-        st.metric("⚡ Temps Total", f"{sum(all_times):.2f}s")
-    
+        st.metric("🔶 RAG KG Dense S&C", f"{dense_sc_result['time']:.2f}s")
+
+    # Additional line for mode and cloud status
+    col5, col6 = st.columns(2)
     with col5:
         st.metric("🌐 Mode", "Cloud" if cloud_enabled else "Local")
-    
     with col6:
         multi_query_status = "✅ Multi-Query" if use_llm_preprocessing else "❌ Classique"
         st.metric("🧠 Mode", multi_query_status)
 
-    # === 🆕 AFFICHAGE CONDITIONNEL DES DÉTAILS TECHNIQUES ENRICHI ===
+    # Conditional technical details display
     if show_details:
         st.markdown("---")
         st.markdown("## 🔍 Détails techniques - Contexte LLM complet")
         
-        # Tabs pour les 4 systèmes
+        # Tabs for the 4 systems
         tab1, tab2, tab3, tab4 = st.tabs(["📘 Classique", "🧠 Dense", "🟤 Sparse", "🔶 Dense S&C"])
         
         for tab, result, system_name in zip([tab1, tab2, tab3, tab4], 
                                            [classic_result, dense_result, sparse_result, dense_sc_result],
                                            ["Classique", "Dense", "Sparse", "Dense S&C"]):
             with tab:
-                # 🆕 AFFICHAGE DE LA QUERY UTILISÉE (pour debug)
+                # Display query used by generator for debugging
                 st.markdown(f"### 🎯 Query utilisée par le générateur {system_name}")
                 effective_query = result.get("effective_query", "N/A")
                 if effective_query == query:
@@ -688,14 +812,14 @@ if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
                     st.success(f"**Query filtrée utilisée:** {effective_query}")
                     st.caption(f"*Query originale:* {query}")
                 
-                # 🆕 Info Multi-Query si applicable
+                # Multi-query info if applicable
                 if result.get("processed_query") and use_llm_preprocessing and system_name != "Classique":
                     st.markdown(f"### 🧠 Multi-Query Info - {system_name}")
                     pq = result["processed_query"]
                     st.info(f"Query filtrée: {pq.filtered_query}")
                     st.info(f"Variantes: {', '.join(pq.query_variants[:2])}...")
                 
-                # 🆕 AFFICHAGE DU CONTEXTE DOCUMENTAIRE ENVOYÉ AU LLM
+                # Display document context sent to LLM
                 st.markdown(f"### 📄 Contexte documentaire envoyé au LLM {system_name}")
                 document_context = result.get("document_context", "")
                 if document_context and document_context.strip():
@@ -705,7 +829,7 @@ if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
                 else:
                     st.warning("Aucun contexte documentaire")
                 
-                # 🆕 AFFICHAGE DU CONTEXTE KG ENVOYÉ AU LLM (si applicable)
+                # Display KG context sent to LLM if applicable
                 if system_name != "Classique":
                     st.markdown(f"### 🧠 Contexte Knowledge Graph envoyé au LLM {system_name}")
                     kg_context = result.get("kg_context", "")
@@ -717,21 +841,21 @@ if st.button("🚀 Comparer les 4 systèmes", type="primary") and query.strip():
                     else:
                         st.warning(f"Aucun contexte KG pertinent pour {system_name}")
                 
-                # Documents détaillés (section existante conservée)
+                # Detailed retrieved documents
                 st.markdown(f"### 📊 Documents récupérés - {system_name}")
                 for i, doc in enumerate(result["reranked_docs"]):
                     score = doc.get('score', 'N/A')
                     with st.expander(f"Document #{i+1} - {doc.get('source', 'Unknown')} (Score: {score:.3f})"):
                         st.markdown(doc['content'])
                 
-                # Triplets KG détaillés (section existante conservée)
+                # Detailed KG triplets
                 if result["kg_triplets"] and system_name != "Classique":
                     st.markdown(f"### 🔗 Triplets KG détaillés - {system_name}")
                     mode_info = " (Multi-Query)" if use_llm_preprocessing else " (Single-Query)"
                     with st.expander(f"Triplets extraits du KG{mode_info}"):
                         st.text(result["kg_triplets"])
 
-# === SIDEBAR AVEC INFORMATIONS (CONSERVÉE + ENRICHIE) ===
+# Sidebar with information
 with st.sidebar:
     st.markdown("## ℹ️ Comparateur RAG 4 Systèmes")
     
@@ -845,7 +969,7 @@ with st.sidebar:
         except:
             st.markdown("*Configuration non disponible*")
     
-    # 🆕 Status Multi-Query
+    # Multi-query status
     st.markdown("---")
     if use_llm_preprocessing:
         st.success("🚀 Multi-Query Fusion ACTIVÉ")
@@ -854,7 +978,7 @@ with st.sidebar:
         st.info("📄 Mode Single-Query")
         st.markdown("Recherche classique sur les KG")
     
-    # 🆕 INFO DEBUG
+    # Debug info
     if show_details:
         st.markdown("---")
         st.markdown("## 🔍 Mode Debug Actif")
