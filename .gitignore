@@ -1,4 +1,23 @@
-data/
+# Data files - keep directory structure but ignore content
+data/documents/source_pdfs/*
+data/documents/extracted_json/*
+data/documents/processed_chunks/*
+
+data/indexes/lexical_bm25/*
+data/indexes/semantic_faiss/*
+data/indexes/embeddings/*
+
+data/knowledge_base/scr_triplets/*
+data/knowledge_base/symptom_bm25_dense/*
+data/knowledge_base/symptom_bm25_sparse/*
+data/knowledge_base/symptom_bm25_dense_sc/*
+data/knowledge_base/symptom_embeddings_dense/*
+data/knowledge_base/symptom_embeddings_sparse/*
+data/knowledge_base/symptom_embeddings_dense_sc/*
+
+# But keep .gitkeep files
+!**/.gitkeep
+
 .env
 
 __pycache__/
