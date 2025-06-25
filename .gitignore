@@ -1,22 +1,42 @@
 # Data files - keep directory structure but ignore content
 data/documents/source_pdfs/*
+!data/documents/source_pdfs/.gitkeep
+
 data/documents/extracted_json/*
+!data/documents/extracted_json/.gitkeep
+
 data/documents/processed_chunks/*
+!data/documents/processed_chunks/.gitkeep
 
 data/indexes/lexical_bm25/*
+!data/indexes/lexical_bm25/.gitkeep
+
 data/indexes/semantic_faiss/*
+!data/indexes/semantic_faiss/.gitkeep
+
 data/indexes/embeddings/*
+!data/indexes/embeddings/.gitkeep
 
 data/knowledge_base/scr_triplets/*
-data/knowledge_base/symptom_bm25_dense/*
-data/knowledge_base/symptom_bm25_sparse/*
-data/knowledge_base/symptom_bm25_dense_sc/*
-data/knowledge_base/symptom_embeddings_dense/*
-data/knowledge_base/symptom_embeddings_sparse/*
-data/knowledge_base/symptom_embeddings_dense_sc/*
+!data/knowledge_base/scr_triplets/.gitkeep
 
-# But keep .gitkeep files
-!**/.gitkeep
+data/knowledge_base/symptom_bm25_dense/*
+!data/knowledge_base/symptom_bm25_dense/.gitkeep
+
+data/knowledge_base/symptom_bm25_sparse/*
+!data/knowledge_base/symptom_bm25_sparse/.gitkeep
+
+data/knowledge_base/symptom_bm25_dense_sc/*
+!data/knowledge_base/symptom_bm25_dense_sc/.gitkeep
+
+data/knowledge_base/symptom_embeddings_dense/*
+!data/knowledge_base/symptom_embeddings_dense/.gitkeep
+
+data/knowledge_base/symptom_embeddings_sparse/*
+!data/knowledge_base/symptom_embeddings_sparse/.gitkeep
+
+data/knowledge_base/symptom_embeddings_dense_sc/*
+!data/knowledge_base/symptom_embeddings_dense_sc/.gitkeep
 
 .env
 
